@@ -136,7 +136,7 @@ plex-light-sync/
 11. run the service during a movie and an hdr movie. include a few dark scenes, an av1 episode (transcoded), and a skip. (first run 2026-10-15: an sdr movie, an hdr movie, skips by fast forward and by chapter, and the restore 30 s after a stop all worked. later the same day: dark scenes, an av1 episode (transcoded), a switch to the next item within 30 s, and "Movie sync" off and on during playback also worked. a bulb that someone turned off stays off.)
 12. tune the fade, the send offset, the thresholds, and the saturation boost.
 13. measure the memory use of ffmpeg during a 4k movie, to know what the ha vm needs. (done 2026-10-15: the service uses 79 MB, and ffmpeg 230 MB for 4k hdr or 126 MB for 1080p, with `-threads 1`. so a 4k movie needs about 310 MB.)
-14. add the dockerfile, ci, and the readme.
+14. add the dockerfile, ci, and the readme. (done 2026-10-15: an alpine image with ffmpeg 8.1.2, non-root, with a healthcheck; ci runs the tests and publishes to ghcr.io; dependabot.)
 
 ## move to a haos app
 
@@ -160,7 +160,6 @@ measured on 2026-10-14 and 2026-10-15.
 notes from the first live runs: in dark scenes, a full-brightness color can feel too strong. dimmer sconces (about 30%) look better, and a bulb inside the field of view while watching is better off.
 
 - choose which bulbs sync. until then, a separate zigbee2mqtt group with only those bulbs does the same.
-
 - give each bulb its own color, from its position relative to the tv.
 - let the brightness follow the picture, so that dark scenes dim the room.
 - replace the 1 s poll with the plex websocket, for instant pause and seek events.
