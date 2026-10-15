@@ -30,23 +30,29 @@ public sealed class PlexClient(HttpClient http)
     }
 
     /// <summary>
-    /// The file of one part of a library item. The file comes from the library, not from the session:
-    /// in a transcoded session, the session describes the transcode.
+    /// The file that plays. It comes from the library, not from the session: in a transcoded session,
+    /// the session describes the transcode.
     /// </summary>
     public async Task<MediaFile> GetMediaFileAsync(PlayingItem item, CancellationToken cancellationToken)
     {
-        var path = "/library/metadata/" + Uri.EscapeDataString(item.RatingKey);
+        var files = await GetMediaFilesAsync(item.RatingKey, cancellationToken);
+        return files.FirstOrDefault(file => file.PartId == item.PartId)
+            ?? throw new InvalidOperationException($"Plex item {item.RatingKey} has no part {item.PartId}.");
+    }
+
+    /// <summary>All files of a library item: every part of every version.</summary>
+    public async Task<IReadOnlyList<MediaFile>> GetMediaFilesAsync(string ratingKey, CancellationToken cancellationToken)
+    {
+        var path = "/library/metadata/" + Uri.EscapeDataString(ratingKey);
         var response = await http.GetFromJsonAsync<PlexResponse>(path, Json, cancellationToken);
-        var part = (response?.MediaContainer.Metadata ?? [])
+        return [.. (response?.MediaContainer.Metadata ?? [])
             .SelectMany(metadata => metadata.Media ?? [])
             .SelectMany(media => media.Part ?? [])
-            .FirstOrDefault(part => part.Id == item.PartId);
-
-        if (part?.Key is null)
-            throw new InvalidOperationException($"Plex item {item.RatingKey} has no part {item.PartId}.");
-
-        var video = part.Stream?.FirstOrDefault(stream => stream.StreamType == PlexStream.Video);
-        // smpte2084 is hdr10 (and the base layer of dolby vision); arib-std-b67 is hlg
-        return new MediaFile(part.Key, IsHdr: video?.ColorTrc is "smpte2084" or "arib-std-b67");
+            .Where(part => part.Key is not null)
+            .Select(part => new MediaFile(part.Id, part.Key!, IsHdr(part)))];
     }
+
+    // smpte2084 is hdr10 (and the base layer of dolby vision); arib-std-b67 is hlg
+    static bool IsHdr(PlexPart part) =>
+        part.Stream?.FirstOrDefault(stream => stream.StreamType == PlexStream.Video)?.ColorTrc is "smpte2084" or "arib-std-b67";
 }

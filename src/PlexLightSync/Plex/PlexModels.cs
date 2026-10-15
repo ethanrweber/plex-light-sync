@@ -8,8 +8,8 @@ public sealed record PlayingItem(string RatingKey, long PartId);
 /// <summary>What the player reported at one poll.</summary>
 public sealed record PlayerReport(PlayingItem Item, TimeSpan Offset, PlayerState State);
 
-/// <summary>The file of a library item. <see cref="PartKey"/> is the path on the Plex server.</summary>
-public sealed record MediaFile(string PartKey, bool IsHdr);
+/// <summary>One file (part) of a library item. <see cref="PartKey"/> is its path on the Plex server.</summary>
+public sealed record MediaFile(long PartId, string PartKey, bool IsHdr);
 
 /// <summary>One playback session on the Plex server.</summary>
 public sealed record PlexSession(

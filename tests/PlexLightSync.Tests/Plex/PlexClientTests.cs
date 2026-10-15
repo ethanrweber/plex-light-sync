@@ -107,9 +107,19 @@ public sealed class PlexClientTests
         var hdr = await client.GetMediaFileAsync(new PlayingItem("100", 22), token);
         var sdr = await client.GetMediaFileAsync(new PlayingItem("100", 11), token);
 
-        Assert.Equal(new MediaFile("/library/parts/22/1/file.mkv", IsHdr: true), hdr);
-        Assert.Equal(new MediaFile("/library/parts/11/1/file.mkv", IsHdr: false), sdr);
+        Assert.Equal(new MediaFile(22, "/library/parts/22/1/file.mkv", IsHdr: true), hdr);
+        Assert.Equal(new MediaFile(11, "/library/parts/11/1/file.mkv", IsHdr: false), sdr);
         Assert.Equal("/library/metadata/100", handler.LastRequest!.RequestUri!.AbsolutePath);
+    }
+
+    [Fact]
+    public async Task All_files_of_an_item_are_listed()
+    {
+        var (client, _) = CreateClient(Metadata);
+
+        var files = await client.GetMediaFilesAsync("100", TestContext.Current.CancellationToken);
+
+        Assert.Equal([11L, 22L], files.Select(file => file.PartId));
     }
 
     [Fact]
