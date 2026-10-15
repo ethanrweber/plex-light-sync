@@ -29,7 +29,7 @@ the service must schedule by timestamp. the decoder holds each keyframe until th
 
 ## ffmpeg command
 
-tested with ffmpeg 8.0.1 (alpine) on 2026-10-15. stdout carries the frames, and stderr carries one `<index> <seconds>` line per frame.
+tested on 2026-10-15 with ffmpeg 8.0.1 (alpine) and 6.1.1 (ubuntu 24.04): same frames, same timestamps. stdout carries the frames, and stderr carries one `<index> <seconds>` line per frame. the frame order can differ between ffmpeg versions.
 
 ```
 ffmpeg -nostdin -loglevel error -headers "X-Plex-Token: <token>" \
@@ -88,7 +88,7 @@ the switch keeps its state across restarts, and is on after the first start. if 
 - **.NET 10** (LTS), regular runtime (not native aot): generic host with a `BackgroundService`, MQTTnet, `HttpClient` + `System.Text.Json`.
 - **ffmpeg is a child process**, not a library binding. you can run the same command by hand to debug it.
 - **the color step is the seam for v2.** it takes a frame and returns one color per light. v1 returns the same color for every light.
-- **settings** come from environment variables or `/data/options.json`. the same build runs on the docker vm and in haos.
+- **settings** come from environment variables or `/data/options.json`. the same build runs on the docker vm and in haos. the keys are flat snake_case: .NET config keys ignore case, so `plex_token` in `options.json` and the `PLEX_TOKEN` environment variable are the same key. for the prototype, a gitignored `.env` holds them.
 - **the plex token** is a dedicated token, linked through plex.tv/link. it shows as its own device under authorized devices in plex, so you can revoke it alone. it never goes into a log. bitwarden keeps the copy.
 - **upkeep**: dependabot for nuget packages, the docker base image, and github actions. mit license. the readme explains how it works, the settings, and how to debug with the ffmpeg command.
 - **tests**: xUnit and `FakeTimeProvider` for the color step and the state machine. the video tests generate short clips with ffmpeg (known colors, known keyframe times, one hdr clip), and run the real pipeline on them. no plex in ci.
@@ -119,10 +119,10 @@ plex-light-sync/
 ## v1: prototype on the docker vm
 
 1. create the repo.
-2. install the tools: `sudo apt install dotnet-sdk-10.0 ffmpeg`. ubuntu 24.04 has ffmpeg 6.1, so check that the core command works with it.
-3. link a dedicated plex token. put it in bitwarden.
-4. during a movie, run the core command by hand. write down the machine id of the tv from `/status/sessions`.
-5. write the plex client and the playback clock. make sure that the clock matches the tv.
+2. install the tools: `sudo apt install dotnet-sdk-10.0 ffmpeg`. (done 2026-10-15: .NET 10.0.112, ffmpeg 6.1.1. the core command works.)
+3. link a dedicated plex token. put it in bitwarden. (done 2026-10-15: device `plex-light-sync`, token in `.env`.)
+4. during a movie, run the core command by hand. write down the machine id of the tv from `/status/sessions`. (done: the id is in `.env`, from the plex device list. the service logs every player that it sees, which confirms the id during a movie.)
+5. write the plex client and the playback clock. make sure that the clock matches the tv. (code done 2026-10-15. to check the clock, play a movie and read the drift lines in the log.)
 6. write the video reader and the color step, with tests.
 7. give the ha vm a dhcp reservation, so that the service can reach mosquitto at a fixed address.
 8. create an mqtt login for the service in the mosquitto app.
