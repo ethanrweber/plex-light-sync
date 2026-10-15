@@ -48,7 +48,8 @@ zscale=w=64:h=36,zscale=t=linear:npl=100,format=gbrpf32le,zscale=p=bt709,tonemap
 
 1. ignore near-black and near-gray pixels. this also removes letterbox bars.
 2. judge a dark frame against its own brightest pixels, so that a night-blue or a red alarm light still shows.
-3. take the main color of the pixels that remain, and boost its saturation.
+3. the pixels that remain vote by hue, weighted by chroma. the 30° hue window with the most votes wins, and the color is the mean of its pixels with a saturation boost. a vote by hue picks teal or orange; an rgb average of the two is gray.
+   the winning window needs at least 1% of the pixels.
 4. if no pixel remains (a black or colorless frame), hold the last color.
 5. if the new color is almost the same as the current one, do not send it. a new command restarts the fade, so small changes only make the light less smooth.
 6. send at most one color every 2 s. if a newer color arrives during the wait, it replaces the color in the queue.
@@ -93,7 +94,7 @@ the switch keeps its state across restarts, and is on after the first start. if 
 - **upkeep**: dependabot for nuget packages, the docker base image, and github actions. mit license. the readme explains how it works, the settings, and how to debug with the ffmpeg command.
 - **tests**: xUnit and `FakeTimeProvider` for the color step and the state machine. the video tests generate short clips with ffmpeg (known colors, known keyframe times, one hdr clip), and run the real pipeline on them. no plex in ci.
 
-settings: plex url, plex token, player machine id, mqtt host and login (prototype only), zigbee2mqtt group, fade, send offset, minimum send gap, color thresholds, saturation boost, restore delay, restore fade.
+settings: plex url, plex token, player machine id, mqtt host and login (prototype only), zigbee2mqtt group, fade, send offset, minimum send gap, color thresholds (`color_black_level`, `color_min_saturation`), saturation boost (`color_saturation_boost`), restore delay, restore fade.
 
 ## repo
 
@@ -108,6 +109,7 @@ plex-light-sync/
     Lights/      mqtt: discovery entities, zigbee2mqtt commands and state
     Sync/        state machine: start, pause, seek, stop, restore
     Program.cs   host and settings
+    Probe.cs     developer tool: prints the colors of a plex item
   tests/PlexLightSync.Tests/
   plex-light-sync/config.yaml   the haos app
   repository.yaml
@@ -123,7 +125,7 @@ plex-light-sync/
 3. link a dedicated plex token. put it in bitwarden. (done 2026-10-15: device `plex-light-sync`, token in `.env`.)
 4. during a movie, run the core command by hand. write down the machine id of the tv from `/status/sessions`. (done: the id is in `.env`, from the plex device list. the service logs every player that it sees, which confirms the id during a movie.)
 5. write the plex client and the playback clock. make sure that the clock matches the tv. (code done 2026-10-15. to check the clock, play a movie and read the drift lines in the log.)
-6. write the video reader and the color step, with tests.
+6. write the video reader and the color step, with tests. (done 2026-10-15. the `probe` command prints the colors of a plex item in the terminal.)
 7. give the ha vm a dhcp reservation, so that the service can reach mosquitto at a fixed address.
 8. create an mqtt login for the service in the mosquitto app.
 9. write the mqtt part. make sure that the entities show up in home assistant.
