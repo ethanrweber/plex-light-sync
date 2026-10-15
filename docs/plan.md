@@ -130,7 +130,7 @@ plex-light-sync/
 7. give the ha vm a dhcp reservation, so that the service can reach mosquitto at a fixed address. (done 2026-10-15.)
 8. create an mqtt login for the service in the mosquitto app. (done 2026-10-15.)
 9. write the mqtt part. make sure that the entities show up in home assistant. (code done 2026-10-15: the entities and the bulb states arrive. it does not change the lights yet.)
-10. write the sync state machine, with tests for play, pause, seek, stop, and restore.
+10. write the sync state machine, with tests for play, pause, seek, stop, and restore. (done 2026-10-15.)
 11. run the service during a movie and an hdr movie. include a few dark scenes, an av1 episode (transcoded), and a skip.
 12. tune the fade, the send offset, the thresholds, and the saturation boost.
 13. measure the memory use of ffmpeg during a 4k movie, to know what the ha vm needs.
