@@ -90,7 +90,7 @@ the switch keeps its state across restarts, and is on after the first start. if 
 - **the color step is the seam for v2.** it takes a frame and returns one color per light. v1 returns the same color for every light.
 - **settings** come from environment variables or `/data/options.json`. the same build runs on the docker vm and in haos.
 - **the plex token** is a dedicated token, linked through plex.tv/link. it shows as its own device under authorized devices in plex, so you can revoke it alone. it never goes into a log. bitwarden keeps the copy.
-- **upkeep**: dependabot for nuget packages, the docker base image, and github actions. license: to confirm (mit recommended). the readme explains how it works, the settings, and how to debug with the ffmpeg command.
+- **upkeep**: dependabot for nuget packages, the docker base image, and github actions. mit license. the readme explains how it works, the settings, and how to debug with the ffmpeg command.
 - **tests**: xUnit and `FakeTimeProvider` for the color step and the state machine. the video tests generate short clips with ffmpeg (known colors, known keyframe times, one hdr clip), and run the real pipeline on them. no plex in ci.
 
 settings: plex url, plex token, player machine id, mqtt host and login (prototype only), zigbee2mqtt group, fade, send offset, minimum send gap, color thresholds, saturation boost, restore delay, restore fade.
