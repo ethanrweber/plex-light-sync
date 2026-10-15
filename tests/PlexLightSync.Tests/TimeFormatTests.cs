@@ -12,6 +12,8 @@ public sealed class TimeFormatTests
     [Theory]
     [InlineData(0.4, "+0.4 s")]
     [InlineData(-12, "-12.0 s")]
+    [InlineData(-0.04, "+0.0 s")] // rounds to zero: no "-+0.0"
+    [InlineData(0.04, "+0.0 s")]
     public void Differences_carry_their_sign(double seconds, string expected) =>
         Assert.Equal(expected, TimeSpan.FromSeconds(seconds).ToSignedSeconds());
 }

@@ -8,7 +8,11 @@ internal static class TimeFormat
     public static string ToClock(this TimeSpan time) =>
         (time < TimeSpan.Zero ? "-" : "") + time.Duration().ToString(@"h\:mm\:ss\.f", CultureInfo.InvariantCulture);
 
-    /// <summary>Formats a difference with its sign: +0.4 s.</summary>
-    public static string ToSignedSeconds(this TimeSpan time) =>
-        time.TotalSeconds.ToString("+0.0;-0.0", CultureInfo.InvariantCulture) + " s";
+    /// <summary>Formats a difference with its sign: +0.4 s. A value that rounds to zero is +0.0 s.</summary>
+    public static string ToSignedSeconds(this TimeSpan time)
+    {
+        // round first: a small negative value (-0.04) would otherwise print as "-+0.0"
+        var seconds = Math.Round(time.TotalSeconds, 1);
+        return (seconds == 0 ? 0 : seconds).ToString("+0.0;-0.0", CultureInfo.InvariantCulture) + " s";
+    }
 }
