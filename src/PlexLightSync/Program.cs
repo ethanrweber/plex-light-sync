@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Options;
 using PlexLightSync;
 using PlexLightSync.Color;
+using PlexLightSync.Lights;
 using PlexLightSync.Plex;
 using PlexLightSync.Video;
 
@@ -36,13 +37,36 @@ builder.Services.AddOptions<ColorOptions>()
 builder.Services.AddHttpClient<PlexClient>((services, http) =>
     PlexClient.Configure(http, services.GetRequiredService<IOptions<PlexOptions>>().Value));
 
+builder.Services.AddOptions<MqttOptions>()
+    .Bind(builder.Configuration)
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
+builder.Services.AddOptions<LightOptions>()
+    .Bind(builder.Configuration)
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
 builder.Services.AddSingleton<FrameSource>();
 builder.Services.AddSingleton<ColorPicker>();
+builder.Services.AddSingleton<MqttBus>();
+builder.Services.AddSingleton<IMqttBus>(services => services.GetRequiredService<MqttBus>());
+builder.Services.AddSingleton<HomeAssistantEntities>();
+builder.Services.AddSingleton<Zigbee2MqttLights>();
 
 if (probe)
+{
     builder.Services.AddTransient<Probe>();
+}
 else
+{
+    // hosted services start in this order. the mqtt parts register their subscriptions before the
+    // bus connects, so the first connect subscribes to all of them.
+    builder.Services.AddHostedService(services => services.GetRequiredService<HomeAssistantEntities>());
+    builder.Services.AddHostedService(services => services.GetRequiredService<Zigbee2MqttLights>());
+    builder.Services.AddHostedService(services => services.GetRequiredService<MqttBus>());
     builder.Services.AddHostedService<PlaybackMonitor>();
+}
 
 try
 {
