@@ -33,6 +33,15 @@ public sealed class FfmpegArgumentsTests
         Assert.True(arguments.IndexOf("-ss") < arguments.IndexOf("-i"));
     }
 
+    [Fact]
+    public void The_decoder_runs_on_one_thread_to_save_memory()
+    {
+        var arguments = FfmpegArguments.Build("/tmp/clip.mkv", TimeSpan.Zero, isHdr: false).ToList();
+
+        Assert.Equal("1", ValueAfter(arguments, "-threads"));
+        Assert.True(arguments.IndexOf("-threads") < arguments.IndexOf("-i")); // an input option: it applies to the decoder
+    }
+
     [Theory]
     [InlineData(false, "scale=64:36")]
     [InlineData(true, "tonemap=hable")]
