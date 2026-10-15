@@ -1,0 +1,12 @@
+# build output
+bin/
+obj/
+TestResults/
+
+# editor files
+.vs/
+*.user
+*.suo
+
+# local settings with the plex token and the mqtt login
+.env
