@@ -31,9 +31,11 @@ the service must schedule by timestamp. the decoder holds each keyframe until th
 
 tested on 2026-10-15 with ffmpeg 8.0.1 (alpine) and 6.1.1 (ubuntu 24.04): same frames, same timestamps. stdout carries the frames, and stderr carries one `<index> <seconds>` line per frame. the frame order can differ between ffmpeg versions.
 
+`-threads 1` halves the memory of ffmpeg at the same speed: 230 MB instead of 396–434 MB for a 4k hdr file, and 126 MB instead of 211–249 MB for 1080p. the service decodes only one keyframe every few seconds, so one thread is enough.
+
 ```
 ffmpeg -nostdin -loglevel error -headers "X-Plex-Token: <token>" \
-  -skip_frame nokey -noaccurate_seek -ss <position> -i <plex file url> \
+  -threads 1 -skip_frame nokey -noaccurate_seek -ss <position> -i <plex file url> \
   -map 0:v:0 -vf scale=64:36 -fps_mode passthrough -f rawvideo -pix_fmt rgb24 \
   -stats_mux_pre_fmt "{n} {t}" -stats_mux_pre pipe:2 pipe:1
 ```
@@ -131,9 +133,9 @@ plex-light-sync/
 8. create an mqtt login for the service in the mosquitto app. (done 2026-10-15.)
 9. write the mqtt part. make sure that the entities show up in home assistant. (code done 2026-10-15: the entities and the bulb states arrive. it does not change the lights yet.)
 10. write the sync state machine, with tests for play, pause, seek, stop, and restore. (done 2026-10-15.)
-11. run the service during a movie and an hdr movie. include a few dark scenes, an av1 episode (transcoded), and a skip.
+11. run the service during a movie and an hdr movie. include a few dark scenes, an av1 episode (transcoded), and a skip. (first run 2026-10-15: an sdr movie, an hdr movie, skips by fast forward and by chapter, and the restore 30 s after a stop all worked. still to try: dark scenes, an av1 episode, and "Movie sync" off during a movie.)
 12. tune the fade, the send offset, the thresholds, and the saturation boost.
-13. measure the memory use of ffmpeg during a 4k movie, to know what the ha vm needs.
+13. measure the memory use of ffmpeg during a 4k movie, to know what the ha vm needs. (done 2026-10-15: the service uses 79 MB, and ffmpeg 230 MB for 4k hdr or 126 MB for 1080p, with `-threads 1`. so a 4k movie needs about 310 MB.)
 14. add the dockerfile, ci, and the readme.
 
 ## move to a haos app
