@@ -10,8 +10,9 @@ public interface IMqttBus
     Task PublishAsync(string topic, string payload, bool retain = false, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Calls the handler with the payload of each message on the topic (no wildcards). The
-    /// subscription stays after a reconnect. A retained message arrives at once.
+    /// Calls the handler with the payload of each message on the topic (no wildcards). An empty
+    /// payload arrives as "", never as null. The subscription stays after a reconnect. A retained
+    /// message arrives at once.
     /// </summary>
     Task SubscribeAsync(string topic, Func<string, Task> handler, CancellationToken cancellationToken = default);
 

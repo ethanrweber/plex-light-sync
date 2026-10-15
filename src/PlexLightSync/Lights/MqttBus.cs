@@ -108,7 +108,8 @@ public sealed class MqttBus(IOptions<MqttOptions> options, ILogger<MqttBus> logg
 
         try
         {
-            await handler(args.ApplicationMessage.ConvertPayloadToString());
+            // mqttnet gives null for an empty payload; handlers always get a string
+            await handler(args.ApplicationMessage.ConvertPayloadToString() ?? "");
         }
         catch (Exception ex)
         {

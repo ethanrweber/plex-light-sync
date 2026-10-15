@@ -22,6 +22,6 @@ public sealed class SavedColors(IMqttBus bus)
     public Task SubscribeAsync(Func<IReadOnlyDictionary<string, BulbState>?, Task> handler, CancellationToken cancellationToken) =>
         bus.SubscribeAsync(Topic, payload => handler(Parse(payload)), cancellationToken);
 
-    internal static IReadOnlyDictionary<string, BulbState>? Parse(string payload) =>
-        payload.Length == 0 ? null : JsonSerializer.Deserialize<Dictionary<string, BulbState>>(payload);
+    internal static IReadOnlyDictionary<string, BulbState>? Parse(string? payload) =>
+        string.IsNullOrEmpty(payload) ? null : JsonSerializer.Deserialize<Dictionary<string, BulbState>>(payload);
 }
