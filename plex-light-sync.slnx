@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/PlexLightSync/PlexLightSync.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/PlexLightSync.Tests/PlexLightSync.Tests.csproj" />
+  </Folder>
+</Solution>
