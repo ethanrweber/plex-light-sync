@@ -11,17 +11,32 @@ var probe = args is ["probe", ..];
 
 var builder = Host.CreateApplicationBuilder(probe ? [] : args);
 
-// in the home assistant app, the settings form arrives as /data/options.json. environment variables
-// come after it, so they override it.
-builder.Configuration
-    .AddJsonFile("/data/options.json", optional: true)
-    .AddEnvironmentVariables();
+// in the home assistant app, the settings form arrives as /data/options.json, and the supervisor
+// gives the mqtt login. environment variables come last, so they override both.
+builder.Configuration.AddJsonFile("/data/options.json", optional: true);
+if (!probe && Environment.GetEnvironmentVariable("SUPERVISOR_TOKEN") is { Length: > 0 } supervisorToken)
+{
+    try
+    {
+        builder.Configuration.AddInMemoryCollection(await SupervisorMqtt.LoadAsync(supervisorToken, CancellationToken.None));
+    }
+    catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or InvalidOperationException or System.Text.Json.JsonException)
+    {
+        Console.Error.WriteLine("settings error: cannot get the mqtt login from the supervisor: " + ex.Message);
+        return 1;
+    }
+}
+builder.Configuration.AddEnvironmentVariables();
 
 builder.Logging.AddSimpleConsole(console =>
 {
     console.SingleLine = true;
     console.TimestampFormat = "HH:mm:ss ";
 });
+
+// "log_level: debug" (the app setting, or LOG_LEVEL=debug) also logs each color that the service sends
+if (string.Equals(builder.Configuration["log_level"], "debug", StringComparison.OrdinalIgnoreCase))
+    builder.Logging.AddFilter("PlexLightSync", LogLevel.Debug);
 
 builder.Services.AddSingleton(TimeProvider.System);
 
