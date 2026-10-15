@@ -1,0 +1,4 @@
+# https://developers.home-assistant.io/docs/apps/repository
+name: plex-light-sync
+url: "https://github.com/ethanrweber/plex-light-sync"
+maintainer: Ethan Weber

@@ -1,0 +1,46 @@
+configuration:
+  plex_url:
+    name: Plex URL
+    description: The address of the Plex server, for example https://192-168-1-2.0123abcd.plex.direct:32400.
+  plex_token:
+    name: Plex token
+    description: A token that you linked for this app. The documentation tab shows how.
+  plex_client_id:
+    name: Plex client ID
+    description: The client identifier that linked the token.
+  plex_player_id:
+    name: Plex player ID
+    description: The machine identifier of the player to follow, for example the living room TV.
+  zigbee2mqtt_group:
+    name: Zigbee2MQTT group
+    description: The friendly name of the Zigbee2MQTT group of the lights that follow the video.
+  log_level:
+    name: Log level
+    description: debug also logs each color that the app sends.
+  zigbee2mqtt_topic:
+    name: Zigbee2MQTT base topic
+    description: Only if you changed it in Zigbee2MQTT. The default is zigbee2mqtt.
+  sync_fade:
+    name: Fade
+    description: Seconds of fade to a new color. Default 2.
+  sync_send_offset:
+    name: Send offset
+    description: Seconds to send a color early, for the Zigbee delay. Default 0.3.
+  sync_min_gap:
+    name: Minimum gap
+    description: The shortest time between two colors, in seconds. A Zigbee network carries about one group command per second. Default 2.
+  sync_restore_delay:
+    name: Restore delay
+    description: Seconds after playback stops until the old colors come back. Default 30.
+  sync_restore_fade:
+    name: Restore fade
+    description: Seconds of fade back to the old colors. Default 3.
+  color_black_level:
+    name: Black level
+    description: A frame whose bright pixels stay below this level (0 to 1) counts as black, and the lights hold their color. Default 0.06.
+  color_min_saturation:
+    name: Minimum saturation
+    description: Pixels with less saturation (0 to 1) count as gray. Default 0.2.
+  color_saturation_boost:
+    name: Saturation boost
+    description: Multiplies the saturation of each color. Lower values give softer colors. Default 1.5.

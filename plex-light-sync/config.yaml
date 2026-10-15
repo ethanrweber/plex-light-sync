@@ -1,0 +1,41 @@
+# https://developers.home-assistant.io/docs/apps/configuration
+name: Plex light sync
+version: "0.1.0"
+slug: plex_light_sync
+description: Makes your lights follow the colors of the video that plays in Plex.
+url: "https://github.com/ethanrweber/plex-light-sync"
+arch:
+  - amd64
+# ci publishes this image; "version" above is its tag
+image: "ghcr.io/ethanrweber/plex-light-sync"
+
+# the mqtt login comes from the mosquitto app, through the supervisor
+services:
+  - mqtt:need
+
+# a null value means that the setting is required
+options:
+  plex_url: null
+  plex_token: null
+  plex_client_id: null
+  plex_player_id: null
+  zigbee2mqtt_group: null
+  log_level: info
+
+# settings with "?" are optional: home assistant hides them until you show the unused ones
+schema:
+  plex_url: url
+  plex_token: password
+  plex_client_id: str
+  plex_player_id: str
+  zigbee2mqtt_group: str
+  log_level: list(info|debug)
+  zigbee2mqtt_topic: "str?"
+  sync_fade: "float(0,10)?"
+  sync_send_offset: "float(0,5)?"
+  sync_min_gap: "float(1,30)?"
+  sync_restore_delay: "float(0,600)?"
+  sync_restore_fade: "float(0,10)?"
+  color_black_level: "float(0,1)?"
+  color_min_saturation: "float(0,1)?"
+  color_saturation_boost: "float(1,5)?"

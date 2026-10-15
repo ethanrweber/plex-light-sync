@@ -11,3 +11,6 @@
 docs/
 tests/
 *.md
+# the home assistant app files: home assistant reads them from the repo, not from the image
+plex-light-sync/
+repository.yaml

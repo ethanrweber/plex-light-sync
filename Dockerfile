@@ -9,9 +9,10 @@ RUN dotnet restore src/PlexLightSync/PlexLightSync.csproj
 COPY src/ src/
 RUN dotnet publish src/PlexLightSync/PlexLightSync.csproj --configuration Release --no-restore --output /app
 
-# run: the .NET runtime, plus ffmpeg from alpine (with zscale and tonemap for hdr files)
+# run: the .NET runtime, plus ffmpeg from alpine (with zscale and tonemap for hdr files). tzdata lets
+# the log use local time when TZ is set, as home assistant does for its apps.
 FROM mcr.microsoft.com/dotnet/runtime:10.0.13-alpine3.24
-RUN apk add --no-cache ffmpeg
+RUN apk add --no-cache ffmpeg tzdata
 WORKDIR /app
 COPY --from=build /app .
 
