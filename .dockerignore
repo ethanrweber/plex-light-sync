@@ -1,0 +1,13 @@
+# the image needs only the build files and src/. above all, .env (the plex token and the
+# mqtt password) must never reach the build.
+.env
+.env.*
+**/bin/
+**/obj/
+.git/
+.github/
+.vs/
+.vscode/
+docs/
+tests/
+*.md

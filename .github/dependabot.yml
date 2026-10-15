@@ -1,0 +1,22 @@
+# weekly pull requests for new versions. ci tests each one before you merge it.
+version: 2
+updates:
+  - package-ecosystem: nuget
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      # the Microsoft.Extensions packages release together
+      microsoft-extensions:
+        patterns: ["Microsoft.Extensions.*"]
+
+  # the .NET sdk and runtime images in the Dockerfile
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
