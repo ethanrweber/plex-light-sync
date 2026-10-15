@@ -4,7 +4,7 @@ makes hue bulbs follow the colors of the video that plays in plex.
 
 when a movie or an episode plays on a chosen plex player, the service reads the video file from plex with ffmpeg, picks a color from each keyframe, and sends the color to a zigbee2mqtt light group at the moment that the frame plays. home assistant gets a "Movie sync" switch through mqtt discovery.
 
-status: v1 works with real lights. next: a home assistant app. the design and its reasons are in [docs/plan.md](docs/plan.md).
+status: v1 works with real lights, and runs as a home assistant app. the design and its reasons are in [docs/plan.md](docs/plan.md).
 
 ## how it works
 
@@ -36,6 +36,12 @@ the service changes only the color, never the brightness, and only while the lig
 2. **find the machine id of the player.** start the service with the other settings, and play something on the player. the log shows "Plex player seen: <name> (<machine id>)".
 3. **create an mqtt login** for the service on your broker.
 4. **copy `.env.example` to `.env`**, and fill it in. `.env` holds secrets: never commit it.
+
+## install as a home assistant app
+
+1. in home assistant, go to settings > apps > app store > ⋮ > repositories, and add `https://github.com/ethanrweber/plex-light-sync`.
+2. install "Plex light sync". its documentation tab shows the setup.
+3. fill in the settings, and start the app. the mqtt login comes from the mosquitto app, so the app has no mqtt settings.
 
 ## run with docker
 
@@ -108,6 +114,19 @@ env 'Logging__LogLevel__PlexLightSync.Sync=Debug' dotnet run --project src/PlexL
 ```
 
 ci (`.github/workflows/ci.yml`) runs the tests on every push, and publishes the image from `main` and from version tags. dependabot proposes package, image, and action updates every week.
+
+## release
+
+1. set the new version in `src/PlexLightSync/PlexLightSync.csproj` (`<Version>`) and in `plex-light-sync/config.yaml` (`version`).
+2. add an entry to `plex-light-sync/CHANGELOG.md`.
+3. commit, push, then tag and push the tag:
+   ```
+   git tag v0.2.0
+   git push origin v0.2.0
+   ```
+4. ci checks that the tag matches both versions, and publishes the image with that version. then home assistant offers the update.
+
+home assistant reads `config.yaml` from `main`. push the version change and the tag together: until ci publishes the image (about 3 minutes), an update in home assistant fails.
 
 ## probe: see the colors without lights
 

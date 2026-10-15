@@ -140,7 +140,7 @@ plex-light-sync/
 
 ## move to a haos app
 
-1. add `repository.yaml` and the app folder with `config.yaml` (`services: mqtt:need`, `hassio_api: true` so that the app can ask the supervisor for the mqtt login, `arch: amd64`, the settings).
+1. add `repository.yaml` and the app folder with `config.yaml` (`services: mqtt:need`, `arch: amd64`, the settings). (done 2026-10-15. `hassio_api` is not necessary: the supervisor lets every app call `/services`, if its config.yaml declares the service.)
 2. tag a release. ci pushes the image with that version, and the `version` in `config.yaml` must match it.
 3. in home assistant, add the repository, and install the app.
 4. stop the prototype on the docker vm.
