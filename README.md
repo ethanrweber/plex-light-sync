@@ -49,7 +49,7 @@ the service changes only the color, never the brightness, and only while the lig
 docker run -d --name plex-light-sync --restart unless-stopped --env-file .env ghcr.io/ethanrweber/plex-light-sync:main
 ```
 
-the image runs as a non-root user and has a healthcheck. `main` follows the main branch; a version tag such as `0.1.0` stays fixed.
+the service runs as a non-root user (the container starts as root only to copy the home assistant settings; see `entrypoint.sh`), and the image has a healthcheck. `main` follows the main branch; a version tag such as `0.1.0` stays fixed.
 
 ## settings
 

@@ -1,6 +1,6 @@
 # https://developers.home-assistant.io/docs/apps/configuration
 name: Plex light sync
-version: "0.1.0"
+version: "0.1.1"
 slug: plex_light_sync
 description: Makes your lights follow the colors of the video that plays in Plex.
 url: "https://github.com/ethanrweber/plex-light-sync"

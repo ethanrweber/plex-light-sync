@@ -12,8 +12,18 @@ var probe = args is ["probe", ..];
 var builder = Host.CreateApplicationBuilder(probe ? [] : args);
 
 // in the home assistant app, the settings form arrives as /data/options.json, and the supervisor
-// gives the mqtt login. environment variables come last, so they override both.
-builder.Configuration.AddJsonFile("/data/options.json", optional: true);
+// gives the mqtt login. environment variables come last, so they override both. only root can read
+// /data/options.json, so entrypoint.sh gives the service a copy, and its path in OPTIONS_FILE.
+var optionsFile = Environment.GetEnvironmentVariable("OPTIONS_FILE") is { Length: > 0 } copy ? copy : "/data/options.json";
+try
+{
+    builder.Configuration.AddJsonFile(optionsFile, optional: true);
+}
+catch (UnauthorizedAccessException)
+{
+    Console.Error.WriteLine($"settings error: cannot read {optionsFile}. start the container as root, so that entrypoint.sh can copy it.");
+    return 1;
+}
 if (!probe && Environment.GetEnvironmentVariable("SUPERVISOR_TOKEN") is { Length: > 0 } supervisorToken)
 {
     try

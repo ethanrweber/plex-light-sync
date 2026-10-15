@@ -56,6 +56,24 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: build the image for the smoke test
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          load: true
+          tags: plex-light-sync:smoke
+          cache-from: type=gha
+
+      # like home assistant: the container starts as root, and only root can read /data/options.json.
+      # with the required settings missing, the service must reach its settings check, not fail on the file.
+      - name: smoke test like the home assistant app
+        run: |
+          docker volume create smoke-data
+          docker run --rm -v smoke-data:/data alpine sh -c 'echo "{\"log_level\":\"info\"}" > /data/options.json && chmod 600 /data/options.json'
+          out=$(docker run --rm -v smoke-data:/data plex-light-sync:smoke 2>&1 || true)
+          echo "$out"
+          echo "$out" | grep -q "settings error: .*field is required"
+
       # tags: "main" for the main branch, "1.2.3" and "1.2" for a version tag, and the commit sha
       - id: meta
         uses: docker/metadata-action@v6
