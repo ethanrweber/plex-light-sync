@@ -78,6 +78,12 @@ public sealed partial class FfmpegFrameReader : IFrameReader
                 var known = double.TryParse(stats.Groups[1].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var seconds);
                 _timestamps.Writer.TryWrite(known ? _start + TimeSpan.FromSeconds(seconds) : null);
             }
+            else if (line.Contains("non monotonically increasing dts", StringComparison.Ordinal))
+            {
+                // ffmpeg 8 says this when a frame comes out of order (open-gop files). it is harmless:
+                // the scheduler sorts the frames and drops the late ones.
+                _logger.LogDebug("ffmpeg: {Line}", line);
+            }
             else if (line.Length > 0)
             {
                 _logger.LogWarning("ffmpeg: {Line}", line);

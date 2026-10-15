@@ -17,6 +17,10 @@ public sealed class SyncEngine : BackgroundService
 {
     public static readonly TimeSpan Tick = TimeSpan.FromMilliseconds(250);
     public static readonly TimeSpan ReadAhead = TimeSpan.FromSeconds(30);
+
+    /// <summary>The engine loop touches this file every 10 s. The container healthcheck reads its age.</summary>
+    public const string HeartbeatFile = "/tmp/plex-light-sync.alive";
+    static readonly TimeSpan HeartbeatInterval = TimeSpan.FromSeconds(10);
     static readonly TimeSpan FirstRetry = TimeSpan.FromSeconds(5);
     static readonly TimeSpan LastRetry = TimeSpan.FromSeconds(60);
 
@@ -45,6 +49,7 @@ public sealed class SyncEngine : BackgroundService
     TimeSpan? _retryAt;
     IReadOnlyDictionary<string, BulbState>? _saved;
     TimeSpan? _restoreAt;
+    TimeSpan? _lastHeartbeat;
 
     public SyncEngine(
         SyncInbox inbox,
@@ -112,6 +117,7 @@ public sealed class SyncEngine : BackgroundService
                     while (_inbox.Reader.TryRead(out var message))
                         await HandleAsync(message, stoppingToken);
                     await TickAsync(stoppingToken);
+                    Heartbeat();
                 }
                 catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
                 {
@@ -326,6 +332,25 @@ public sealed class SyncEngine : BackgroundService
         await _savedColors.ClearAsync(cancellationToken);
         _saved = null;
         _logger.LogInformation("Restored the saved colors");
+    }
+
+    void Heartbeat()
+    {
+        if (_lastHeartbeat is { } last && Now - last < HeartbeatInterval)
+            return;
+        _lastHeartbeat = Now;
+        try
+        {
+            File.WriteAllText(HeartbeatFile, DateTimeOffset.UtcNow.ToString("O"));
+        }
+        catch (IOException ex)
+        {
+            _logger.LogDebug(ex, "Cannot write the heartbeat file");
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogDebug(ex, "Cannot write the heartbeat file");
+        }
     }
 
     void Fail(string reason)
