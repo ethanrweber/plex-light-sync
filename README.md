@@ -4,7 +4,7 @@ makes hue bulbs follow the colors of the video that plays in plex.
 
 when a movie or an episode plays on a chosen plex player, the service reads the video file from plex with ffmpeg, picks a color from each keyframe, and sends the color to a zigbee2mqtt light group at the moment that the frame plays. home assistant gets a "Movie sync" switch through mqtt discovery.
 
-status: v1 prototype in progress. the service follows the playback of a plex player, reads the colors of a video, and connects to mqtt: home assistant shows its entities, and it knows the state of the lights. it does not change the lights yet. the design is in [docs/plan.md](docs/plan.md).
+status: v1 prototype in progress. the whole sync works in tests; the first run with real lights is next. the design is in [docs/plan.md](docs/plan.md).
 
 ## development
 
@@ -25,6 +25,8 @@ you need the .NET 10 sdk and ffmpeg.
 in home assistant, the service shows up as the device "Plex light sync" (settings > devices & services > mqtt), with a "Movie sync" switch and a "Status" sensor. when the service stops, both show as unavailable.
 
 when something plays on the followed player, the service logs each event: start, pause, resume, skip, and stop. every 10 s, the tv reports its position, and the service logs how far its own estimate was off. values within ±1 s are normal.
+
+to see each color that the service sends, add `Logging__LogLevel__PlexLightSync.Sync=Debug` to `.env`. to stop the sync and get the old colors back at once, turn "Movie sync" off.
 
 ## probe: see the colors without lights
 

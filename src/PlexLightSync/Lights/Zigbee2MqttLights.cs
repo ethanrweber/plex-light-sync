@@ -3,6 +3,18 @@ using PlexLightSync.Color;
 
 namespace PlexLightSync.Lights;
 
+/// <summary>The lights that the sync engine drives. Tests replace them with a fake.</summary>
+public interface ILights
+{
+    bool AnyOn { get; }
+
+    IReadOnlyDictionary<string, BulbState> States { get; }
+
+    Task SetColorAsync(HsColor color, TimeSpan fade, CancellationToken cancellationToken);
+
+    Task RestoreAsync(IReadOnlyDictionary<string, BulbState> saved, TimeSpan fade, CancellationToken cancellationToken);
+}
+
 /// <summary>
 /// The bulbs of the configured zigbee2mqtt group: who they are, what state they are in, and the
 /// commands that change them.
@@ -13,7 +25,7 @@ namespace PlexLightSync.Lights;
 /// state, and then follows the bulb's messages.
 /// </remarks>
 public sealed class Zigbee2MqttLights(IMqttBus bus, IOptions<LightOptions> options, ILogger<Zigbee2MqttLights> logger)
-    : IHostedService
+    : IHostedService, ILights
 {
     readonly Lock _lock = new();
     readonly Dictionary<string, BulbState> _states = [];

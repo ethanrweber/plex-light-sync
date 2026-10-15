@@ -3,6 +3,7 @@ using PlexLightSync;
 using PlexLightSync.Color;
 using PlexLightSync.Lights;
 using PlexLightSync.Plex;
+using PlexLightSync.Sync;
 using PlexLightSync.Video;
 
 // "probe <ratingKey> ..." runs the developer tool instead of the service
@@ -47,12 +48,24 @@ builder.Services.AddOptions<LightOptions>()
     .ValidateDataAnnotations()
     .ValidateOnStart();
 
+builder.Services.AddOptions<SyncOptions>()
+    .Bind(builder.Configuration)
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
+builder.Services.AddTransient<IMediaFileLookup>(services => services.GetRequiredService<PlexClient>());
+builder.Services.AddSingleton(services => new PlaybackTracker(
+    services.GetRequiredService<TimeProvider>(), PlaybackMonitor.SeekThreshold, reportDelay: PlaybackMonitor.PollInterval / 2));
 builder.Services.AddSingleton<FrameSource>();
+builder.Services.AddSingleton<IFrameSource>(services => services.GetRequiredService<FrameSource>());
 builder.Services.AddSingleton<ColorPicker>();
 builder.Services.AddSingleton<MqttBus>();
 builder.Services.AddSingleton<IMqttBus>(services => services.GetRequiredService<MqttBus>());
 builder.Services.AddSingleton<HomeAssistantEntities>();
 builder.Services.AddSingleton<Zigbee2MqttLights>();
+builder.Services.AddSingleton<ILights>(services => services.GetRequiredService<Zigbee2MqttLights>());
+builder.Services.AddSingleton<SavedColors>();
+builder.Services.AddSingleton<SyncInbox>();
 
 if (probe)
 {
@@ -64,6 +77,7 @@ else
     // bus connects, so the first connect subscribes to all of them.
     builder.Services.AddHostedService(services => services.GetRequiredService<HomeAssistantEntities>());
     builder.Services.AddHostedService(services => services.GetRequiredService<Zigbee2MqttLights>());
+    builder.Services.AddHostedService<SyncEngine>();
     builder.Services.AddHostedService(services => services.GetRequiredService<MqttBus>());
     builder.Services.AddHostedService<PlaybackMonitor>();
 }

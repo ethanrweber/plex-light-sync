@@ -3,8 +3,14 @@ using System.Text.Json;
 
 namespace PlexLightSync.Plex;
 
+/// <summary>Finds the file of a playing item. Tests replace it with a fake.</summary>
+public interface IMediaFileLookup
+{
+    Task<MediaFile> GetMediaFileAsync(PlayingItem item, CancellationToken cancellationToken);
+}
+
 /// <summary>Reads playback sessions and library items from the Plex server.</summary>
-public sealed class PlexClient(HttpClient http)
+public sealed class PlexClient(HttpClient http) : IMediaFileLookup
 {
     static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 

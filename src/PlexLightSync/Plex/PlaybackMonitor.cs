@@ -1,20 +1,23 @@
 using System.Text.Json;
 using Microsoft.Extensions.Options;
+using PlexLightSync.Sync;
 
 namespace PlexLightSync.Plex;
 
 /// <summary>
-/// Polls Plex every second, follows the configured player, and logs its playback events.
+/// Polls Plex every second, follows the configured player, logs its playback events, and passes them
+/// to the sync engine.
 /// </summary>
-/// <remarks>For now this only logs. A later step adds the sync engine, which consumes the events.</remarks>
 public sealed class PlaybackMonitor(
     PlexClient plex,
+    PlaybackTracker tracker,
+    SyncInbox inbox,
     IOptions<PlexOptions> options,
     TimeProvider time,
     ILogger<PlaybackMonitor> logger) : BackgroundService
 {
-    static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(1);
-    static readonly TimeSpan SeekThreshold = TimeSpan.FromSeconds(3);
+    public static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(1);
+    public static readonly TimeSpan SeekThreshold = TimeSpan.FromSeconds(3);
 
     readonly HashSet<string> _seenPlayers = [];
     bool _plexDown;
@@ -22,7 +25,6 @@ public sealed class PlaybackMonitor(
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         var playerId = options.Value.PlayerId;
-        var tracker = new PlaybackTracker(time, SeekThreshold, reportDelay: PollInterval / 2);
         logger.LogInformation("Following Plex player {PlayerId}", playerId);
 
         using var timer = new PeriodicTimer(PollInterval, time);
@@ -35,7 +37,10 @@ public sealed class PlaybackMonitor(
             LogNewPlayers(sessions);
             var report = sessions.FirstOrDefault(s => s.PlayerId == playerId && s.IsSyncable)?.ToReport();
             if (tracker.Observe(report) is { } playbackEvent)
-                await LogAsync(playbackEvent, stoppingToken);
+            {
+                Log(playbackEvent);
+                inbox.Post(playbackEvent);
+            }
         }
         while (await timer.WaitForNextTickAsync(stoppingToken));
     }
@@ -74,15 +79,14 @@ public sealed class PlaybackMonitor(
         }
     }
 
-    async Task LogAsync(PlaybackEvent playbackEvent, CancellationToken stoppingToken)
+    void Log(PlaybackEvent playbackEvent)
     {
         switch (playbackEvent)
         {
             case PlaybackStarted started:
                 logger.LogInformation(
-                    "Started {RatingKey} part {PartId} at {Position}, {State}, {File}",
-                    started.Item.RatingKey, started.Item.PartId, started.Position.ToClock(),
-                    started.IsPlaying ? "playing" : "paused", await DescribeFileAsync(started.Item, stoppingToken));
+                    "Started {RatingKey} part {PartId} at {Position}, {State}",
+                    started.Item.RatingKey, started.Item.PartId, started.Position.ToClock(), started.IsPlaying ? "playing" : "paused");
                 break;
             case PlaybackPaused paused:
                 logger.LogInformation("Paused at {Position} ({State})", paused.Position.ToClock(), paused.State);
@@ -99,20 +103,6 @@ public sealed class PlaybackMonitor(
             case PlaybackStopped:
                 logger.LogInformation("Stopped");
                 break;
-        }
-    }
-
-    async Task<string> DescribeFileAsync(PlayingItem item, CancellationToken stoppingToken)
-    {
-        try
-        {
-            var file = await plex.GetMediaFileAsync(item, stoppingToken);
-            return $"{(file.IsHdr ? "hdr" : "sdr")} {file.PartKey}";
-        }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException or InvalidOperationException
-                                   && !stoppingToken.IsCancellationRequested)
-        {
-            return $"file lookup failed: {ex.Message}";
         }
     }
 }

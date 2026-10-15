@@ -14,7 +14,7 @@ namespace PlexLightSync.Video;
 /// The reader reads stdout only when the caller asks for the next frame. If the caller waits, the pipe
 /// fills, and ffmpeg waits too. That is how the caller limits how far ffmpeg reads ahead.
 /// </remarks>
-public sealed partial class FfmpegFrameReader : IAsyncDisposable
+public sealed partial class FfmpegFrameReader : IFrameReader
 {
     readonly Process _process;
     readonly TimeSpan _start;
