@@ -78,11 +78,12 @@ trigger: movies and episodes from the libraries. trailers, extras, live tv, and 
 | plex | poll `/status/sessions` every 1 s | the state, file, and position of the player with the configured machine id |
 | plex | ffmpeg, over https | the video file |
 | home assistant | mqtt discovery | the "Movie sync" switch, a status sensor (idle, syncing, paused, error), and availability |
-| zigbee2mqtt | subscribe `zigbee2mqtt/bridge/groups` | the bulbs in the group |
+| zigbee2mqtt | subscribe `zigbee2mqtt/bridge/groups` and `zigbee2mqtt/bridge/devices` | the bulbs in the group, by friendly name |
 | zigbee2mqtt | subscribe `zigbee2mqtt/<bulb>` | the state of each bulb, to save and restore it |
+| zigbee2mqtt | publish `zigbee2mqtt/<bulb>/get` | asks a new bulb for its state. zigbee2mqtt does not retain bulb states. |
 | zigbee2mqtt | publish `zigbee2mqtt/<group>/set` | the color |
 
-the switch keeps its state across restarts, and is on after the first start. if the service stops, home assistant shows its entities as unavailable.
+the switch keeps its state across restarts, and is on after the first start. home assistant retains the switch commands, so after a restart the broker gives the service the last command at once. if the service stops, home assistant shows its entities as unavailable.
 
 ## design
 
@@ -126,9 +127,9 @@ plex-light-sync/
 4. during a movie, run the core command by hand. write down the machine id of the tv from `/status/sessions`. (done: the id is in `.env`, from the plex device list. the service logs every player that it sees, which confirms the id during a movie.)
 5. write the plex client and the playback clock. make sure that the clock matches the tv. (code done 2026-10-15. to check the clock, play a movie and read the drift lines in the log.)
 6. write the video reader and the color step, with tests. (done 2026-10-15. the `probe` command prints the colors of a plex item in the terminal.)
-7. give the ha vm a dhcp reservation, so that the service can reach mosquitto at a fixed address.
-8. create an mqtt login for the service in the mosquitto app.
-9. write the mqtt part. make sure that the entities show up in home assistant.
+7. give the ha vm a dhcp reservation, so that the service can reach mosquitto at a fixed address. (done 2026-10-15.)
+8. create an mqtt login for the service in the mosquitto app. (done 2026-10-15.)
+9. write the mqtt part. make sure that the entities show up in home assistant. (code done 2026-10-15: the entities and the bulb states arrive. it does not change the lights yet.)
 10. write the sync state machine, with tests for play, pause, seek, stop, and restore.
 11. run the service during a movie and an hdr movie. include a few dark scenes, an av1 episode (transcoded), and a skip.
 12. tune the fade, the send offset, the thresholds, and the saturation boost.
