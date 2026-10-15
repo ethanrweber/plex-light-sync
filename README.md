@@ -26,7 +26,13 @@ in home assistant, the service shows up as the device "Plex light sync" (setting
 
 when something plays on the followed player, the service logs each event: start, pause, resume, skip, and stop. every 10 s, the tv reports its position, and the service logs how far its own estimate was off. values within ±1 s are normal.
 
-to see each color that the service sends, add `Logging__LogLevel__PlexLightSync.Sync=Debug` to `.env`. to stop the sync and get the old colors back at once, turn "Movie sync" off.
+to see each color that the service sends, turn on debug logging for the sync. the setting name has a dot, which a bash variable cannot have, so pass it with `env`:
+
+```
+env 'Logging__LogLevel__PlexLightSync.Sync=Debug' dotnet run --project src/PlexLightSync
+```
+
+to stop the sync and get the old colors back at once, turn "Movie sync" off.
 
 ## probe: see the colors without lights
 
