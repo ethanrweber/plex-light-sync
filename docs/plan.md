@@ -192,8 +192,6 @@ the window size came from the frames of the killing s01e01, 1:45–13:00 (`probe
 
 with ±2 s, conversations still made the sconces alternate (orange 41°, blue 210°, orange 36°, blue 195°, orange 52° in 14 s).
 
-**open: a small vivid object in a muted scene.** the killing s01e01 at ~20:30: a white and beige school hallway, and the sconces turn deep red from a scarf. the picker ignores gray pixels, so the few vivid pixels win (1% is enough), and the saturation boost makes them deeper. the vote does not help: the scarf stays on screen long enough. a later change to the picker can scale the saturation by how colorful the whole frame is.
-
 **decode speed**, 30 s of video at two frames per second, one thread, on the r730 (xeon e5-2683 v3), × real time. to keep up, a file needs more than 1×:
 
 | file | keyframes only | all frames | `noref` (ffmpeg 6.1.1) | `noref` (ffmpeg 8.1.2, the app image) |
