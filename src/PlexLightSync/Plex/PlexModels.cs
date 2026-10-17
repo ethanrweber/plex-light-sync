@@ -9,7 +9,8 @@ public sealed record PlayingItem(string RatingKey, long PartId);
 public sealed record PlayerReport(PlayingItem Item, TimeSpan Offset, PlayerState State);
 
 /// <summary>One file (part) of a library item. <see cref="PartKey"/> is its path on the Plex server.</summary>
-public sealed record MediaFile(long PartId, string PartKey, bool IsHdr);
+/// <param name="Width">The width of the video in pixels. 0 if Plex does not know it.</param>
+public sealed record MediaFile(long PartId, string PartKey, bool IsHdr, int Width = 0);
 
 /// <summary>One playback session on the Plex server.</summary>
 public sealed record PlexSession(

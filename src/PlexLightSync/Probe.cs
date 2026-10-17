@@ -1,19 +1,21 @@
 using System.Globalization;
+using Microsoft.Extensions.Options;
 using PlexLightSync.Color;
 using PlexLightSync.Plex;
+using PlexLightSync.Sync;
 using PlexLightSync.Video;
 
 namespace PlexLightSync;
 
 /// <summary>
-/// A developer tool: prints the picked color of each keyframe of a Plex item, with a color swatch,
-/// without lights. Use it to tune the color settings.
+/// A developer tool: prints the picked color of each frame that the service reads from a Plex item,
+/// with a color swatch, without lights. Use it to tune the color settings.
 /// </summary>
 /// <remarks>
 /// <c>dotnet run --project src/PlexLightSync -- probe &lt;ratingKey&gt; [start h:mm:ss] [frames]</c>.
 /// The rating key is in the service log ("Started 12345 ...") and in the Plex web address of the item.
 /// </remarks>
-public sealed class Probe(PlexClient plex, FrameSource frames, ColorPicker picker)
+public sealed class Probe(PlexClient plex, FrameSource frames, ColorPicker picker, IOptions<SyncOptions> sync)
 {
     public const string Usage = "usage: probe <ratingKey> [start h:mm:ss] [frames]";
 
@@ -35,8 +37,10 @@ public sealed class Probe(PlexClient plex, FrameSource frames, ColorPicker picke
             return 1;
         }
 
-        Console.WriteLine($"{file.PartKey} ({(file.IsHdr ? "hdr" : "sdr")}), from {start.ToClock()}");
-        await using var reader = frames.Start(file, start);
+        var framesPerSecond = sync.Value.FramesPerSecondFor(file);
+        var mode = framesPerSecond is { } rate ? rate.ToString("0.#", CultureInfo.InvariantCulture) + " frames/s" : "keyframes";
+        Console.WriteLine($"{file.PartKey} ({(file.IsHdr ? "hdr" : "sdr")}, {file.Width} px, {mode}), from {start.ToClock()}");
+        await using var reader = frames.Start(file, start, framesPerSecond);
         var count = 0;
         await foreach (var frame in reader.ReadFramesAsync(cancellationToken))
         {

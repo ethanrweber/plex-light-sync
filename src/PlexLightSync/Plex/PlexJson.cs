@@ -33,7 +33,7 @@ internal sealed record PlexMedia(long Id, List<PlexPart>? Part);
 
 internal sealed record PlexPart(long Id, string? Key, List<PlexStream>? Stream);
 
-internal sealed record PlexStream(int StreamType, string? ColorTrc)
+internal sealed record PlexStream(int StreamType, string? ColorTrc, int? Width)
 {
     public const int Video = 1;
 }

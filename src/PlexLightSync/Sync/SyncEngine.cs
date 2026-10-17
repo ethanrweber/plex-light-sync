@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using Microsoft.Extensions.Options;
 using PlexLightSync.Color;
@@ -15,8 +16,16 @@ namespace PlexLightSync.Sync;
 /// </remarks>
 public sealed class SyncEngine : BackgroundService
 {
-    public static readonly TimeSpan Tick = TimeSpan.FromMilliseconds(250);
+    // a fifth of the shortest gap, so that a color every 0.5 s keeps its rhythm
+    public static readonly TimeSpan Tick = TimeSpan.FromMilliseconds(100);
     public static readonly TimeSpan ReadAhead = TimeSpan.FromSeconds(30);
+
+    /// <summary>
+    /// If the frames fall this far behind the playback, ffmpeg decodes too slowly, and the service reads
+    /// only the keyframes of the item. A normal start lags up to ~10 s: ffmpeg begins at the keyframe
+    /// before the start position.
+    /// </summary>
+    public static readonly TimeSpan FallBehindLimit = TimeSpan.FromSeconds(15);
 
     /// <summary>The engine loop touches this file every 10 s. The container healthcheck reads its age.</summary>
     public const string HeartbeatFile = "/tmp/plex-light-sync.alive";
@@ -41,7 +50,10 @@ public sealed class SyncEngine : BackgroundService
 
     PlayingItem? _item;   // what plays, or is paused, now
     MediaFile? _file;
+    bool _keyframesOnly;  // set when this item decoded too slowly
     IFrameReader? _reader;
+    TimeSpan _readerStart;
+    double? _framesPerSecond;  // of the current reader; null for keyframes only
     CancellationTokenSource? _pumpStop;
     Task<int>? _pump;     // its result is the number of frames that it read
     bool _failed;
@@ -145,6 +157,7 @@ public sealed class SyncEngine : BackgroundService
                 await StopReaderAsync();
                 _item = started.Item;
                 _file = null;
+                _keyframesOnly = false;
                 ClearFailure();
                 _restoreAt = null; // a new item within the restore delay (autoplay) keeps the saved colors
                 if (started.IsPlaying)
@@ -194,6 +207,7 @@ public sealed class SyncEngine : BackgroundService
     internal async Task TickAsync(CancellationToken cancellationToken)
     {
         CheckPump();
+        await CheckFallingBehindAsync(cancellationToken);
         if (_retryAt is { } retryAt && Now >= retryAt && _item is not null && _playback.IsPlaying && _playback.Position is { } current)
             await StartReaderAsync(current, cancellationToken);
 
@@ -238,7 +252,9 @@ public sealed class SyncEngine : BackgroundService
         try
         {
             _file ??= await _files.GetMediaFileAsync(_item, cancellationToken);
-            _reader = _frames.Start(_file, position);
+            _framesPerSecond = _keyframesOnly ? null : _settings.FramesPerSecondFor(_file);
+            _reader = _frames.Start(_file, position, _framesPerSecond);
+            _readerStart = position;
         }
         catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
@@ -246,7 +262,9 @@ public sealed class SyncEngine : BackgroundService
             return;
         }
 
-        _logger.LogInformation("Reading {PartKey} ({Range}) from {Position}", _file.PartKey, _file.IsHdr ? "hdr" : "sdr", position.ToClock());
+        var mode = _framesPerSecond is { } rate ? rate.ToString("0.#", CultureInfo.InvariantCulture) + " frames/s" : "keyframes";
+        _logger.LogInformation("Reading {PartKey} ({Range}, {Width} px, {Mode}) from {Position}",
+            _file.PartKey, _file.IsHdr ? "hdr" : "sdr", _file.Width, mode, position.ToClock());
         _pumpStop = new CancellationTokenSource();
         _pump = PumpAsync(_reader, _pumpStop.Token);
     }
@@ -298,6 +316,21 @@ public sealed class SyncEngine : BackgroundService
         }
     }
 
+    // a file that decodes slower than real time gives older and older colors
+    async Task CheckFallingBehindAsync(CancellationToken cancellationToken)
+    {
+        if (_framesPerSecond is null || _pump is null || _failed || !_playback.IsPlaying || _playback.Position is not { } position)
+            return;
+
+        var behind = position - (_scheduler.Horizon ?? _readerStart);
+        if (behind <= FallBehindLimit)
+            return;
+
+        _logger.LogWarning("The frames fell {Behind:0} s behind the playback: reading only the keyframes of this item from now on", behind.TotalSeconds);
+        _keyframesOnly = true;
+        await StartReaderAsync(position, cancellationToken);
+    }
+
     async Task StopReaderAsync()
     {
         if (_pumpStop is not null)
@@ -317,7 +350,7 @@ public sealed class SyncEngine : BackgroundService
             await _reader.DisposeAsync();
 
         _pumpStop?.Dispose();
-        (_pumpStop, _pump, _reader) = (null, null, null);
+        (_pumpStop, _pump, _reader, _framesPerSecond) = (null, null, null, null);
         _scheduler.Clear();
     }
 

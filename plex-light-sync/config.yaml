@@ -33,7 +33,7 @@ schema:
   zigbee2mqtt_topic: "str?"
   sync_fade: "float(0,10)?"
   sync_send_offset: "float(0,5)?"
-  sync_min_gap: "float(1,30)?"
+  sync_min_gap: "float(0.5,30)?"
   sync_restore_delay: "float(0,600)?"
   sync_restore_fade: "float(0,10)?"
   color_black_level: "float(0,1)?"

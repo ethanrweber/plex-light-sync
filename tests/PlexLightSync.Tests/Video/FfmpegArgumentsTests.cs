@@ -51,4 +51,32 @@ public sealed class FfmpegArgumentsTests
 
         Assert.Contains(expected, ValueAfter(arguments, "-vf"));
     }
+
+    [Fact]
+    public void Without_a_frame_rate_only_the_keyframes_are_decoded()
+    {
+        var arguments = FfmpegArguments.Build("/tmp/clip.mkv", TimeSpan.Zero, isHdr: false);
+
+        Assert.Equal("nokey", ValueAfter(arguments, "-skip_frame"));
+        Assert.Equal("scale=64:36", ValueAfter(arguments, "-vf"));
+    }
+
+    [Theory]
+    [InlineData(false, "fps=2,scale=64:36")]
+    [InlineData(true, "fps=2,zscale=w=64:h=36,")]
+    public void A_frame_rate_decodes_the_reference_frames_and_picks_the_frames_first(bool isHdr, string expectedStart)
+    {
+        var arguments = FfmpegArguments.Build("/tmp/clip.mkv", TimeSpan.Zero, isHdr, framesPerSecond: 2);
+
+        Assert.Equal("noref", ValueAfter(arguments, "-skip_frame"));
+        Assert.StartsWith(expectedStart, ValueAfter(arguments, "-vf"));
+    }
+
+    [Fact]
+    public void A_fractional_frame_rate_is_written_with_a_dot()
+    {
+        var arguments = FfmpegArguments.Build("/tmp/clip.mkv", TimeSpan.Zero, isHdr: false, framesPerSecond: 1 / 0.7);
+
+        Assert.Equal("fps=1.429,scale=64:36", ValueAfter(arguments, "-vf"));
+    }
 }

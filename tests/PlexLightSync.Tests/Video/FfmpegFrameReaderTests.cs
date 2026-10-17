@@ -11,11 +11,12 @@ public sealed class FfmpegFrameReaderTests(GeneratedClips clips) : IClassFixture
     // no saturation boost, so that the tests see the colors as ffmpeg delivers them
     static readonly ColorPicker Picker = new(Options.Create(new ColorOptions { SaturationBoost = 1 }));
 
-    async Task<List<VideoFrame>> ReadAllAsync(string file, TimeSpan start, bool isHdr)
+    async Task<List<VideoFrame>> ReadAllAsync(string file, TimeSpan start, bool isHdr, double? framesPerSecond = null)
     {
         Assert.SkipUnless(clips.Available, "ffmpeg is not installed");
 
-        await using var reader = FfmpegFrameReader.Start(FfmpegArguments.Build(file, start, isHdr), start, NullLogger.Instance);
+        var arguments = FfmpegArguments.Build(file, start, isHdr, framesPerSecond: framesPerSecond);
+        await using var reader = FfmpegFrameReader.Start(arguments, start, NullLogger.Instance);
         var frames = new List<VideoFrame>();
         await foreach (var frame in reader.ReadFramesAsync(TestContext.Current.CancellationToken))
             frames.Add(frame);
@@ -48,6 +49,25 @@ public sealed class FfmpegFrameReaderTests(GeneratedClips clips) : IClassFixture
 
         Assert.Equal([2.0, 4.0], frames.Select(frame => Math.Round(frame.Position.TotalSeconds, 2)));
         AssertHue(240, HueOf(frames[0]));
+    }
+
+    [Fact]
+    public async Task A_frame_rate_gives_frames_at_that_rate_with_their_positions()
+    {
+        var frames = await ReadAllAsync(clips.Sdr, TimeSpan.Zero, isHdr: false, framesPerSecond: 2);
+
+        Assert.Equal(Enumerable.Range(0, 12).Select(i => i * 0.5), frames.Select(frame => Math.Round(frame.Position.TotalSeconds, 2)));
+        AssertHue(0, HueOf(frames[3]));    // 1.5 s: red
+        AssertHue(240, HueOf(frames[5]));  // 2.5 s: blue
+        AssertHue(120, HueOf(frames[11])); // 5.5 s: green
+    }
+
+    [Fact]
+    public async Task A_frame_rate_also_begins_at_the_keyframe_before_the_start()
+    {
+        var frames = await ReadAllAsync(clips.Sdr, TimeSpan.FromSeconds(3), isHdr: false, framesPerSecond: 2);
+
+        Assert.Equal([2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5], frames.Select(frame => Math.Round(frame.Position.TotalSeconds, 2)));
     }
 
     [Fact]

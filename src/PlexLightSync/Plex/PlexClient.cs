@@ -55,10 +55,11 @@ public sealed class PlexClient(HttpClient http) : IMediaFileLookup
             .SelectMany(metadata => metadata.Media ?? [])
             .SelectMany(media => media.Part ?? [])
             .Where(part => part.Key is not null)
-            .Select(part => new MediaFile(part.Id, part.Key!, IsHdr(part)))];
+            .Select(part => new MediaFile(part.Id, part.Key!, IsHdr(part), VideoStream(part)?.Width ?? 0))];
     }
 
+    static PlexStream? VideoStream(PlexPart part) => part.Stream?.FirstOrDefault(stream => stream.StreamType == PlexStream.Video);
+
     // smpte2084 is hdr10 (and the base layer of dolby vision); arib-std-b67 is hlg
-    static bool IsHdr(PlexPart part) =>
-        part.Stream?.FirstOrDefault(stream => stream.StreamType == PlexStream.Video)?.ColorTrc is "smpte2084" or "arib-std-b67";
+    static bool IsHdr(PlexPart part) => VideoStream(part)?.ColorTrc is "smpte2084" or "arib-std-b67";
 }

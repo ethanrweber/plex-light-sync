@@ -22,13 +22,13 @@ configuration:
     description: Only if you changed it in Zigbee2MQTT. The default is zigbee2mqtt.
   sync_fade:
     name: Fade
-    description: Seconds of fade to a new color. Default 2.
+    description: Seconds of fade to a new color. Default 0.5.
   sync_send_offset:
     name: Send offset
     description: Seconds to send a color early, for the Zigbee delay. Default 0.3.
   sync_min_gap:
     name: Minimum gap
-    description: The shortest time between two colors, in seconds. A Zigbee network carries about one group command per second. Default 2.
+    description: The shortest time between two colors, in seconds, at least 0.5. For a video up to 1080p, the app also reads one frame per gap. Default 0.5.
   sync_restore_delay:
     name: Restore delay
     description: Seconds after playback stops until the old colors come back. Default 30.

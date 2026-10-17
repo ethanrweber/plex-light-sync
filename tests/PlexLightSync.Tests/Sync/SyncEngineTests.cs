@@ -100,7 +100,7 @@ public sealed class SyncEngineTests
         Assert.Equal([S(60)], _frames.Starts);
         var (color, fade) = Assert.Single(_lights.Colors);
         Assert.Equal(0, color.Hue, precision: 0);
-        Assert.Equal(S(2), fade);
+        Assert.Equal(S(0.5), fade);
         Assert.Contains(WhiteOn, SavedColors.Parse(_bus.PayloadsFor(SavedColors.Topic).Single())!.Values);
         Assert.Equal("syncing", LastStatus);
     }
@@ -122,15 +122,67 @@ public sealed class SyncEngineTests
     [Fact]
     public async Task Colors_keep_the_minimum_gap()
     {
-        _frames.Frames.AddRange([Red(60), Blue(61)]);
+        _frames.Frames.AddRange([Red(60), Blue(60.4)]);
         await ReportAsync(60);
         await _engine.TickAsync(Token);
 
-        await AdvanceAsync(1); // blue is due, but red went out 1 s ago
+        await AdvanceAsync(0.2); // blue is due, but red went out 0.2 s ago
         Assert.Single(_lights.Colors);
 
-        await AdvanceAsync(1);
+        await AdvanceAsync(0.3);
         Assert.Equal(2, _lights.Colors.Count);
+    }
+
+    [Fact]
+    public async Task A_1080p_file_gives_one_frame_per_gap_and_a_4k_file_only_its_keyframes()
+    {
+        _files.Width = 1920;
+        await ReportAsync(60);
+
+        await StopAsync();
+        _files.Width = 3840;
+        await ReportAsync(0, item: NextEpisode);
+
+        Assert.Equal([2.0, null], _frames.Rates);
+    }
+
+    [Fact]
+    public async Task Frames_that_keep_up_do_not_change_the_mode()
+    {
+        _files.Width = 1920;
+        _frames.KeepOpen = true;
+        _frames.Frames.AddRange([Red(60), Blue(70), Red(80)]);
+        await ReportAsync(60);
+        await _engine.TickAsync(Token);
+
+        await AdvanceAsync(20);
+
+        Assert.Equal([2.0], _frames.Rates);
+    }
+
+    [Fact]
+    public async Task A_file_that_decodes_too_slowly_reads_only_keyframes_until_the_next_item()
+    {
+        _files.Width = 1920;
+        _frames.KeepOpen = true;    // ffmpeg runs, but it decodes too slowly to deliver more frames
+        _frames.Frames.Add(Red(60));
+        await ReportAsync(60);
+        await _engine.TickAsync(Token);
+
+        await AdvanceAsync(15);     // 15 s behind: a normal lag after a start can be up to ~10 s
+        Assert.Equal([2.0], _frames.Rates);
+
+        await AdvanceAsync(0.1);
+        Assert.Equal([2.0, null], _frames.Rates);
+        Assert.Equal(75.1, _frames.Starts[^1].TotalSeconds, precision: 3);
+
+        _time.Advance(S(1));
+        await ReportAsync(300);     // a skip keeps the keyframes
+        Assert.Equal([2.0, null, null], _frames.Rates);
+
+        await StopAsync();
+        await ReportAsync(0, item: NextEpisode);
+        Assert.Equal([2.0, null, null, 2.0], _frames.Rates);
     }
 
     [Fact]
@@ -293,11 +345,16 @@ public sealed class SyncEngineTests
     {
         public List<VideoFrame> Frames { get; } = [];
         public List<TimeSpan> Starts { get; } = [];
+        public List<double?> Rates { get; } = [];
         public int Disposed { get; private set; }
 
-        public IFrameReader Start(MediaFile file, TimeSpan position)
+        /// <summary>True: after its frames, a reader waits instead of ending, like an ffmpeg that is still busy.</summary>
+        public bool KeepOpen { get; set; }
+
+        public IFrameReader Start(MediaFile file, TimeSpan position, double? framesPerSecond)
         {
             Starts.Add(position);
+            Rates.Add(framesPerSecond);
             return new Reader(this);
         }
 
@@ -307,7 +364,8 @@ public sealed class SyncEngineTests
             {
                 foreach (var frame in source.Frames.ToList())
                     yield return frame;
-                await Task.CompletedTask;
+                if (source.KeepOpen)
+                    await Task.Delay(Timeout.Infinite, cancellationToken);
             }
 
             public ValueTask DisposeAsync()
@@ -322,11 +380,14 @@ public sealed class SyncEngineTests
     {
         public int Failures { get; set; }
 
+        /// <summary>0 (unknown) by default: only keyframes, so most tests need no frame rate.</summary>
+        public int Width { get; set; }
+
         public Task<MediaFile> GetMediaFileAsync(PlayingItem item, CancellationToken cancellationToken)
         {
             if (Failures-- > 0)
                 throw new HttpRequestException("plex is down");
-            return Task.FromResult(new MediaFile(item.PartId, $"/library/parts/{item.PartId}/1/file.mkv", IsHdr: false));
+            return Task.FromResult(new MediaFile(item.PartId, $"/library/parts/{item.PartId}/1/file.mkv", IsHdr: false, Width));
         }
     }
 }

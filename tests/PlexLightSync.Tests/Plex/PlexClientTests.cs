@@ -52,9 +52,9 @@ public sealed class PlexClientTests
               "type": "movie", "ratingKey": "100",
               "Media": [
                 { "id": 1, "Part": [{ "id": 11, "key": "/library/parts/11/1/file.mkv",
-                  "Stream": [{ "streamType": 1, "codec": "h264" }, { "streamType": 2, "codec": "aac" }] }] },
+                  "Stream": [{ "streamType": 1, "codec": "h264", "width": 1920 }, { "streamType": 2, "codec": "aac" }] }] },
                 { "id": 2, "Part": [{ "id": 22, "key": "/library/parts/22/1/file.mkv",
-                  "Stream": [{ "streamType": 1, "codec": "hevc", "colorTrc": "smpte2084", "DOVIPresent": true }] }] }
+                  "Stream": [{ "streamType": 1, "codec": "hevc", "colorTrc": "smpte2084", "DOVIPresent": true, "width": 3840 }] }] }
               ]
             }]
           }
@@ -99,7 +99,7 @@ public sealed class PlexClientTests
     }
 
     [Fact]
-    public async Task The_file_comes_from_the_part_that_plays_and_hdr_is_detected()
+    public async Task The_file_comes_from_the_part_that_plays_with_its_hdr_flag_and_width()
     {
         var (client, handler) = CreateClient(Metadata);
         var token = TestContext.Current.CancellationToken;
@@ -107,8 +107,8 @@ public sealed class PlexClientTests
         var hdr = await client.GetMediaFileAsync(new PlayingItem("100", 22), token);
         var sdr = await client.GetMediaFileAsync(new PlayingItem("100", 11), token);
 
-        Assert.Equal(new MediaFile(22, "/library/parts/22/1/file.mkv", IsHdr: true), hdr);
-        Assert.Equal(new MediaFile(11, "/library/parts/11/1/file.mkv", IsHdr: false), sdr);
+        Assert.Equal(new MediaFile(22, "/library/parts/22/1/file.mkv", IsHdr: true, Width: 3840), hdr);
+        Assert.Equal(new MediaFile(11, "/library/parts/11/1/file.mkv", IsHdr: false, Width: 1920), sdr);
         Assert.Equal("/library/metadata/100", handler.LastRequest!.RequestUri!.AbsolutePath);
     }
 

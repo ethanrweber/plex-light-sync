@@ -34,7 +34,7 @@ public sealed class ColorScheduler
 
     /// <summary>
     /// Takes the newest pick at or before the position, and drops the older ones. After a start, that is
-    /// the keyframe on screen now. Null if no pick is due.
+    /// the frame on screen now. Null if no pick is due.
     /// </summary>
     public ColorPick? TakeDue(TimeSpan position)
     {
