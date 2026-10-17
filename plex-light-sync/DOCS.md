@@ -39,7 +39,7 @@ The app adds the device "Plex light sync" with two entities:
 
 ## What happens
 
-- When a movie or an episode plays, the lights get a color from each keyframe of the video, with a 2 s fade.
+- When a movie or an episode plays, the lights get a new color up to two times a second, with a 0.5 s fade. A 4K video gives a color only at each keyframe (every few seconds): it takes too much CPU to decode.
 - On a pause, they hold their color.
 - 30 s after playback stops, they get back the colors from before the sync. An episode that plays next within those 30 s keeps the sync going.
 

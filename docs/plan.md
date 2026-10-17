@@ -9,13 +9,15 @@ the living room sconces follow the colors of the movie or episode that plays on 
 when plex reports that a video plays on the living room tv:
 
 1. the service starts ffmpeg at the playback position.
-2. ffmpeg reads the file from plex and decodes only the keyframes. it writes each keyframe as a 64×36 frame, with its timestamp. hdr files go through a tone map first.
+2. ffmpeg reads the file from plex. for a file up to 1920 pixels wide (1080p), it decodes the frames that other frames refer to, and writes one frame per minimum gap (two per second). for a wider file (4k), it decodes only the keyframes. it writes each frame as 64×36 pixels, with its timestamp. hdr files go through a tone map first.
 3. the service picks a vivid color from each frame, and queues the color by timestamp.
-4. when the playback clock reaches a timestamp, the service sends that color to the sconces through zigbee2mqtt, with a 2 s fade. it sends a little early (the send offset), to cover the zigbee delay.
+4. when the playback clock reaches a timestamp, the service sends that color to the sconces through zigbee2mqtt, with a 0.5 s fade. it sends a little early (the send offset), to cover the zigbee delay.
 
-the service must schedule by timestamp. the decoder holds each keyframe until the next one arrives, so frames come out up to one keyframe gap late (measured: 1.5–5 s). frames can also come out of order. the service drops any frame that is already in the past, except the newest one: that frame is on screen now, so the service sends it at once. without this, the sconces wait up to 10 s for a color after a start or a seek.
+the service must schedule by timestamp. with keyframes only, the decoder holds each keyframe until the next one arrives, so frames come out up to one keyframe gap late (measured: 1.5–5 s). frames can also come out of order. the service drops any frame that is already in the past, except the newest one: that frame is on screen now, so the service sends it at once. without this, the sconces wait up to 10 s for a color after a start or a seek.
 
-**read rate.** without limits, ffmpeg reads 16–23× faster than playback. the service reads at most 30 s ahead. after that, it pauses its reads, the output pipe fills, and ffmpeg waits. after a fast start, ffmpeg reads at the same rate as the tv.
+**too slow.** if the frames fall more than 15 s behind the playback, ffmpeg cannot decode the file in real time. then the service reads only the keyframes of that item, also after a seek, and logs a warning. the next item starts with two frames per second again. a normal start lags up to ~10 s, because ffmpeg begins at the keyframe before the start position.
+
+**read rate.** without limits, ffmpeg reads 16–23× faster than playback with keyframes only, and 2.7–4.2× with two frames per second from 1080p. the service reads at most 30 s ahead. after that, it pauses its reads, the output pipe fills, and ffmpeg waits. after a fast start, ffmpeg reads at the same rate as the tv.
 
 **playback clock.** the service keeps its own stopwatch of the playback position. it polls `/status/sessions` every 1 s, and the tv reports its real position every 10 s. at each report, the service compares the two:
 
@@ -31,7 +33,7 @@ the service must schedule by timestamp. the decoder holds each keyframe until th
 
 tested on 2026-10-15 with ffmpeg 8.0.1 (alpine) and 6.1.1 (ubuntu 24.04): same frames, same timestamps. stdout carries the frames, and stderr carries one `<index> <seconds>` line per frame. the frame order can differ between ffmpeg versions.
 
-`-threads 1` halves the memory of ffmpeg at the same speed: 230 MB instead of 396–434 MB for a 4k hdr file, and 126 MB instead of 211–249 MB for 1080p. the service decodes only one keyframe every few seconds, so one thread is enough.
+`-threads 1` halves the memory of ffmpeg at the same speed: 230 MB instead of 396–434 MB for a 4k hdr file, and 126 MB instead of 211–249 MB for 1080p. one thread decodes the keyframes of any file, and two frames per second of a 1080p file, faster than real time.
 
 ```
 ffmpeg -nostdin -loglevel error -headers "X-Plex-Token: <token>" \
@@ -39,6 +41,8 @@ ffmpeg -nostdin -loglevel error -headers "X-Plex-Token: <token>" \
   -map 0:v:0 -vf scale=64:36 -fps_mode passthrough -f rawvideo -pix_fmt rgb24 \
   -stats_mux_pre_fmt "{n} {t}" -stats_mux_pre pipe:2 pipe:1
 ```
+
+for a file up to 1920 pixels wide, replace `-skip_frame nokey` with `-skip_frame noref`, and put `fps=2,` (one frame per minimum gap) at the start of the filter. "noref" skips only the frames that no other frame refers to, so the picture stays intact, and the decode work halves. the fps filter comes first, so that the scale and the tone map run on the kept frames only. the timestamps fall on a 0.5 s grid from the start position, and each grid point takes the nearest decoded frame.
 
 for hdr files (transfer `smpte2084`), replace `scale=64:36` with this tone map. dolby vision files use their hdr10 layer:
 
@@ -54,9 +58,9 @@ zscale=w=64:h=36,zscale=t=linear:npl=100,format=gbrpf32le,zscale=p=bt709,tonemap
    the winning window needs at least 1% of the pixels.
 4. if no pixel remains (a black or colorless frame), hold the last color.
 5. if the new color is almost the same as the current one, do not send it. a new command restarts the fade, so small changes only make the light less smooth.
-6. send at most one color every 2 s. if a newer color arrives during the wait, it replaces the color in the queue.
+6. send at most one color every 0.5 s (the minimum gap). if a newer color arrives during the wait, it replaces the color in the queue.
 
-a group command is a zigbee broadcast. a zigbee network can carry about one broadcast per second, and step 6 keeps the service at half of that or less. the 1 s poll goes to plex over the lan, not over zigbee.
+a group command is a zigbee broadcast: every router of the network sends it on once. each device keeps a table of recent broadcasts, so that it does not send one on twice. when the table is full, new broadcasts can be lost. the size of the table and how long an entry stays depend on the zigbee stack: 8 entries for 8 s on digi xbee, 15 entries (silicon labs docs) for about 3 s on emberznet, which the zbt-2 coordinator runs. hue bulbs do not publish theirs. so the network decides the safe rate, and `tools/zigbee-bench.cs` measures it (see "v0.2: faster colors"). the 1 s poll goes to plex over the lan, not over zigbee.
 
 ## rules
 
@@ -68,7 +72,7 @@ a group command is a zigbee broadcast. a zigbee network can carry about one broa
 - 30 s after the last playback stops, it restores the saved colors. the delay prevents a flash between autoplayed episodes.
 - if someone turns "Movie sync" off, it restores the saved colors immediately.
 - a restore fades over 3 s. it changes only the bulbs that are on, and never turns a bulb on or off.
-- if someone changes the color during playback, the next keyframe overrides it. to take control, turn "Movie sync" off.
+- if someone changes the color during playback, the next color overrides it. to take control, turn "Movie sync" off.
 - time-of-day rules belong in home assistant: an automation can turn "Movie sync" on and off.
 
 trigger: movies and episodes from the libraries. trailers, extras, live tv, and music do not trigger it. any plex account that watches on the living room tv triggers it.
@@ -150,10 +154,48 @@ plex-light-sync/
 
 measured on 2026-10-14 and 2026-10-15.
 
-- **keyframes.** the color changes only at a keyframe: typically every 4–6 s, at most every 10 s, and mostly at scene cuts.
+- **4k: keyframes.** for a file wider than 1920 pixels, the color changes only at a keyframe: typically every 4–6 s, at most every 10 s (4k files often have a fixed 10 s gap). one core decodes 4k at only 0.6× real time, and the ha vm has 2 cores, which it shares with home assistant.
 - **seeks.** the tv reports its position every 10 s, so the service can find a seek up to 10 s late.
 - **plex only.** netflix and youtube do not go through plex.
 - **wall switch.** if the wall switch is off, the bulbs have no power, and nothing happens.
+
+## v0.2: faster colors
+
+feedback after two days: the sync is fun, but feels like a gimmick. the main reason: the color changed only at keyframes, every 4–10 s, so the sconces followed a scene cut up to 10 s late. the 2 s send gap was rarely the limit. in 30 s of video, keyframes gave 3 colors (la la land, 4k), 4 (an x264 episode), 11 (an x265 movie, an av1 episode), and 39 (a remux with short keyframe gaps: the only file where the 2 s gap mattered).
+
+decisions (2026-10-16):
+
+- keep the group command. send at most one color every 0.5 s, with a 0.5 s fade. the lowest allowed minimum gap is 0.5 s: the fastest rate that was tested.
+- the frames per second follow the minimum gap (one frame per gap), so the two settings cannot disagree.
+- files up to 1920 pixels wide get two frames per second. the width, not the height: a wide 4k movie is 3840×1504, and a wide 1080p movie is 1920×800. an unknown width gets keyframes only.
+- wider files (4k) keep keyframes only. the ha vm has 2 cores, and more cores for the vm are fewer for plex.
+- keep the rule that skips almost identical colors.
+- the engine loop ticks every 100 ms instead of 250 ms, so that a color every 0.5 s keeps its rhythm.
+
+**decode speed**, 30 s of video at two frames per second, one thread, on the r730 (xeon e5-2683 v3), × real time. to keep up, a file needs more than 1×:
+
+| file | keyframes only | all frames | `noref` (ffmpeg 6.1.1) | `noref` (ffmpeg 8.1.2, the app image) |
+|---|---|---|---|---|
+| 4k hdr x265 (la la land) | 10.8 | 0.4 | 0.6 | |
+| 1080p x265 10-bit (mortal kombat ii) | 29.8 | 2.2 | 3.4 | 4.2 |
+| 1080p avc remux (a nightmare on elm street 3) | 13.9 | 1.1 | 2.2 | 2.7 |
+| 1080p x264 episode (the killing) | 42.6 | 1.6 | 2.5 | 3.4 |
+| 1080p av1 episode (nippon sangoku) | 54.8 | 3.0 | 4.5 | |
+| 1080p hdr x265 (uncut gems), with the tone map | | | | 3.3 |
+
+with two threads, 4k decodes at only 0.7×. `-skip_frame bidir` (skip all b-frames) is faster, but it can damage the frames that refer to b-frames. `-skip_loop_filter all` gains only ~15%. ffmpeg uses 68–104 MB for 1080p in this mode.
+
+**zigbee benchmark** (`dotnet run tools/zigbee-bench.cs -- .env`), 2026-10-16, the 3-bulb sconce group, zbt-2 coordinator:
+
+| commands | every | result |
+|---|---|---|
+| one per bulb (unicast, acked) | 1 / 0.5 / 0.25 / 0.1 s | 90 of 90 acked at each rate, latency p50 56–67 ms, max 109 ms |
+| one group command (broadcast) | 1 s | 60 of 60 read-backs show the new color, 0 errors |
+| one group command (broadcast) | 0.5 s | 60 of 60 read-backs show the new color, 0 errors |
+
+the bulbs turn a hue into xy with their own color wheel (hue 120 gives x 0.258, y 0.634 on the bulb, but zigbee2mqtt computes 0.172, 0.747). so the group test first records the xy of each hue on each bulb. the "hue" in a bulb's read reply is a stale cached value; only its x and y are real.
+
+the hue entertainment api reaches 25 updates per second, but only through a hue bridge: the bridge packs up to 10 lights into one custom message, sends it to one bulb, and that bulb sends it on as a one-hop broadcast. zigbee2mqtt cannot send that message. parked.
 
 ## v2 ideas
 
