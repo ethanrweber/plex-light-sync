@@ -227,3 +227,4 @@ notes from the first live runs: in dark scenes, a full-brightness color can feel
 - give each bulb its own color, from its position relative to the tv.
 - let the brightness follow the picture, so that dark scenes dim the room.
 - replace the 1 s poll with the plex websocket, for instant pause and seek events.
+- 4k with the vote: with keyframes only, the vote has one frame every few seconds, so it smooths much less (user, 2026-10-16). hardware decoding (a gpu for the ha vm) or colors computed ahead of time (for example nightly on the docker vm) would give 4k two frames per second too.
