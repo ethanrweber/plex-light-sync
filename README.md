@@ -2,7 +2,7 @@
 
 makes hue bulbs follow the colors of the video that plays in plex.
 
-when a movie or an episode plays on a chosen plex player, the service reads the video file from plex with ffmpeg, picks a color two times a second, and sends the color to a zigbee2mqtt light group at the moment that the frame plays. home assistant gets a "Movie sync" switch through mqtt discovery.
+when a movie or an episode plays on a chosen plex player, the service reads the video file from plex with ffmpeg, picks the color of each scene, and sends the color to a zigbee2mqtt light group at the moment that the frame plays. home assistant gets a "Movie sync" switch through mqtt discovery.
 
 status: v1 works with real lights, and runs as a home assistant app. the design and its reasons are in [docs/plan.md](docs/plan.md).
 
@@ -10,7 +10,7 @@ status: v1 works with real lights, and runs as a home assistant app. the design 
 
 1. the service polls plex every second, and follows one player.
 2. when a movie or an episode plays there, ffmpeg reads the file from plex. it gives two frames per second from a file up to 1920 pixels wide (1080p). from a wider file (4k), it gives only the keyframes: one core decodes 4k too slowly. hdr files get a tone map.
-3. the service picks one vivid color from each frame, and sends it to the light group at the moment that the frame plays, with a 0.5 s fade.
+3. the service picks one vivid color from each frame. the frames around each moment (±3 s) vote on the color of the lights, so that the lights follow scenes, not single frames. the service reads ahead, so a change lands on its scene cut, with a 2 s fade centered on the cut.
 4. on a pause, the lights hold their color. 30 s after playback stops, they get back the colors from before the sync.
 
 the service changes only the color, never the brightness, and only while the lights are already on. it never turns a light on or off.
@@ -66,7 +66,8 @@ environment variables, or the same keys in lowercase in `/data/options.json`.
 | `MQTT_USER`, `MQTT_PASSWORD` | (none) | the mqtt login |
 | `ZIGBEE2MQTT_GROUP` | (required) | the friendly name of the zigbee2mqtt group of the lights |
 | `ZIGBEE2MQTT_TOPIC` | `zigbee2mqtt` | the base topic of zigbee2mqtt |
-| `SYNC_FADE` | `0.5` | seconds of fade to a new color |
+| `SYNC_FADE` | `2` | seconds of fade to a new color |
+| `SYNC_WINDOW` | `3` | seconds before and after each moment that vote on the color. a new color must last about this long before the lights follow it |
 | `SYNC_SEND_OFFSET` | `0.3` | seconds to send a color early, for the zigbee delay |
 | `SYNC_MIN_GAP` | `0.5` | shortest time between two colors, in seconds (at least 0.5). files up to 1080p also give one frame per gap |
 | `SYNC_RESTORE_DELAY` | `30` | seconds after playback stops until the old colors come back |
@@ -130,7 +131,7 @@ home assistant reads `config.yaml` from `main`. push the version change and the 
 
 ## probe: see the colors without lights
 
-the probe prints the color that the service picks for each frame that it reads from a plex item, with a color swatch in the terminal. use it to tune the color settings.
+the probe prints the color that the service picks for each frame that it reads from a plex item, and the color that the lights would show, with color swatches in the terminal. at the end, it prints the light changes per minute, and a line per 30 s: "y" for a frame with a light change, "x" for a frame without. use it to tune the color and sync settings.
 
 ```
 dotnet run --project src/PlexLightSync -- probe <ratingKey> [start h:mm:ss] [frames]

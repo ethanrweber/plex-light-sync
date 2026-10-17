@@ -32,6 +32,7 @@ schema:
   log_level: list(info|debug)
   zigbee2mqtt_topic: "str?"
   sync_fade: "float(0,10)?"
+  sync_window: "float(0,10)?"
   sync_send_offset: "float(0,5)?"
   sync_min_gap: "float(0.5,30)?"
   sync_restore_delay: "float(0,600)?"

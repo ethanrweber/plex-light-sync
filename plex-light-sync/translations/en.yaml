@@ -22,7 +22,10 @@ configuration:
     description: Only if you changed it in Zigbee2MQTT. The default is zigbee2mqtt.
   sync_fade:
     name: Fade
-    description: Seconds of fade to a new color. Default 0.5.
+    description: Seconds of fade to a new color. Default 2.
+  sync_window:
+    name: Window
+    description: A new color must last about this many seconds before the lights follow it. Shorter flashes and quick cuts do not reach the lights. Real scene changes still come on time, because the app reads ahead. Default 3.
   sync_send_offset:
     name: Send offset
     description: Seconds to send a color early, for the Zigbee delay. Default 0.3.

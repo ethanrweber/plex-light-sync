@@ -100,7 +100,7 @@ public sealed class SyncEngineTests
         Assert.Equal([S(60)], _frames.Starts);
         var (color, fade) = Assert.Single(_lights.Colors);
         Assert.Equal(0, color.Hue, precision: 0);
-        Assert.Equal(S(0.5), fade);
+        Assert.Equal(S(2), fade);
         Assert.Contains(WhiteOn, SavedColors.Parse(_bus.PayloadsFor(SavedColors.Topic).Single())!.Values);
         Assert.Equal("syncing", LastStatus);
     }
@@ -112,25 +112,85 @@ public sealed class SyncEngineTests
         await ReportAsync(60);
         await _engine.TickAsync(Token);
 
-        await AdvanceAsync(9.5); // position 69.5, plus the send offset: 69.8
+        // blue goes out 1.3 s early: the send offset (0.3 s) and half the fade (1 s), so that the fade is centered on 70
+        await AdvanceAsync(8.5); // position 68.5: 69.8
         Assert.Single(_lights.Colors);
 
-        await AdvanceAsync(0.3); // position 69.8, plus the offset: 70.1
+        await AdvanceAsync(0.3); // position 68.8: 70.1
         Assert.Equal(240, _lights.Colors.Last().Color.Hue, precision: 0);
     }
 
     [Fact]
     public async Task Colors_keep_the_minimum_gap()
     {
-        _frames.Frames.AddRange([Red(60), Blue(60.4)]);
+        _frames.Frames.AddRange([Red(60), Blue(61.5)]);
         await ReportAsync(60);
         await _engine.TickAsync(Token);
 
-        await AdvanceAsync(0.2); // blue is due, but red went out 0.2 s ago
+        await AdvanceAsync(0.2); // blue is due (61.5 - 1.3), but red went out 0.2 s ago
         Assert.Single(_lights.Colors);
 
         await AdvanceAsync(0.3);
         Assert.Equal(2, _lights.Colors.Count);
+    }
+
+    // a 1080p file at 2 frames per second, red from 60 s to 80 s
+    void Scene(Func<double, VideoFrame> frameAt)
+    {
+        _files.Width = 1920;
+        for (var t = 60.0; t < 80; t += 0.5)
+            _frames.Frames.Add(frameAt(t));
+    }
+
+    [Fact]
+    public async Task A_short_flash_in_a_scene_does_not_reach_the_lights()
+    {
+        Scene(t => t is >= 70 and < 71.5 ? Blue(t) : Red(t)); // 1.5 s of blue
+        await ReportAsync(60);
+        await _engine.TickAsync(Token);
+
+        for (var i = 0; i < 150; i++)
+            await AdvanceAsync(0.1);
+
+        Assert.All(_lights.Colors, sent => Assert.Equal(0, sent.Color.Hue, precision: 0));
+    }
+
+    [Fact]
+    public async Task A_lasting_change_goes_out_before_the_cut_so_that_the_fade_is_around_it()
+    {
+        Scene(t => t >= 70 ? Blue(t) : Red(t));
+        await ReportAsync(60);
+        await _engine.TickAsync(Token);
+
+        while (_lights.Colors.Count < 2 && _playback.Position < S(75))
+            await AdvanceAsync(0.1);
+
+        Assert.Equal(240, _lights.Colors[^1].Color.Hue, precision: 0);
+        Assert.InRange(_playback.Position!.Value, S(68.7), S(70)); // the 2 s fade starts 0.3 s later and spans the cut
+    }
+
+    [Fact]
+    public async Task The_first_vote_after_a_start_waits_for_a_full_window()
+    {
+        _files.Width = 1920;
+        _frames.KeepOpen = true; // ffmpeg is still busy: the frames after 62 s have not come yet
+        _frames.Frames.AddRange([Red(60), Red(60.5), Red(61), Red(61.5), Red(62)]);
+        await ReportAsync(60);
+        await _engine.TickAsync(Token);
+
+        Assert.Empty(_lights.Colors); // the vote at 61.3 needs frames up to 64.3
+    }
+
+    [Fact]
+    public async Task At_the_end_of_the_file_the_vote_takes_the_frames_that_are_left()
+    {
+        _files.Width = 1920;
+        _frames.Frames.AddRange([Red(60), Red(60.5), Red(61), Red(61.5), Red(62)]); // then ffmpeg ends
+        await ReportAsync(60);
+        await _engine.TickAsync(Token);
+        await _engine.TickAsync(Token); // the first tick sees that the pump ended
+
+        Assert.Equal(0, Assert.Single(_lights.Colors).Color.Hue, precision: 0);
     }
 
     [Fact]

@@ -10,9 +10,10 @@ namespace PlexLightSync.Sync;
 
 /// <summary>Makes the sconces follow the video. docs/plan.md describes the rules.</summary>
 /// <remarks>
-/// One loop owns all the decisions. Every <see cref="Tick"/>, it handles the inbox, sends a due color,
-/// and checks the restore timer. A frame pump runs beside it: it reads ffmpeg's frames, picks their
-/// colors, and queues them in the scheduler, at most <see cref="ReadAhead"/> ahead of the playback.
+/// One loop owns all the decisions. Every <see cref="Tick"/>, it handles the inbox, lets the frames
+/// around the playback position vote on the color (<see cref="ColorVote"/>), sends a new color, and
+/// checks the restore timer. A frame pump runs beside it: it reads ffmpeg's frames, picks their colors,
+/// and adds them to the timeline, at most <see cref="ReadAhead"/> ahead of the playback.
 /// </remarks>
 public sealed class SyncEngine : BackgroundService
 {
@@ -44,7 +45,7 @@ public sealed class SyncEngine : BackgroundService
     readonly SyncOptions _settings;
     readonly TimeProvider _time;
     readonly ILogger<SyncEngine> _logger;
-    readonly ColorScheduler _scheduler = new();
+    readonly ColorTimeline _timeline = new();
     readonly ColorSender _sender;
     readonly long _createdAt;
 
@@ -213,15 +214,15 @@ public sealed class SyncEngine : BackgroundService
 
         if (_reader is not null && _playback.Position is { } position)
         {
-            switch (_scheduler.TakeDue(position + _settings.SendOffset))
-            {
-                case { Color: { } color }:
-                    _sender.Offer(color);
-                    break;
-                case { }:
-                    _sender.Cancel(); // a black or colorless frame: hold, and drop an older color that still waits
-                    break;
-            }
+            // the middle of the fade lands on the frame's moment, and the send offset covers the zigbee delay
+            var at = position + _settings.SendOffset + _settings.Fade / 2;
+            var keyframesOnly = _framesPerSecond is null;
+            // after a start or a seek, wait until the frames fill the window (or the file ends): a vote on
+            // half a window can pick a color that the full window rejects a moment later
+            var windowFull = keyframesOnly || _pump is null || _timeline.Horizon >= at + _settings.Window;
+            if (windowFull && ColorVote.Decide(_timeline, at, _settings.Window, keyframesOnly, _sender.Last) is { } color)
+                _sender.Offer(color);
+            _timeline.DropBefore(at - _settings.Window);
         }
 
         if (_homeAssistant.MovieSyncOn && _lights.AnyOn && _sender.TakeReady(Now) is { } ready)
@@ -276,10 +277,10 @@ public sealed class SyncEngine : BackgroundService
         {
             await foreach (var frame in reader.ReadFramesAsync(cancellationToken))
             {
-                _scheduler.Add(frame.Position, _picker.Pick(frame));
+                _timeline.Add(frame.Position, _picker.Pick(frame));
                 count++;
                 // while the pump waits here, ffmpeg's output pipe fills, and ffmpeg waits too
-                while (_scheduler.Horizon - _playback.Position > ReadAhead)
+                while (_timeline.Horizon - _playback.Position > ReadAhead)
                     await Task.Delay(Tick, _time, cancellationToken);
             }
         }
@@ -309,7 +310,7 @@ public sealed class SyncEngine : BackgroundService
         }
 
         // frames arrived from the current reader, so the problem is over
-        if (_failed && _scheduler.Horizon is not null)
+        if (_failed && _timeline.Horizon is not null)
         {
             _logger.LogInformation("Frames arrive again");
             ClearFailure();
@@ -322,7 +323,7 @@ public sealed class SyncEngine : BackgroundService
         if (_framesPerSecond is null || _pump is null || _failed || !_playback.IsPlaying || _playback.Position is not { } position)
             return;
 
-        var behind = position - (_scheduler.Horizon ?? _readerStart);
+        var behind = position - (_timeline.Horizon ?? _readerStart);
         if (behind <= FallBehindLimit)
             return;
 
@@ -351,7 +352,7 @@ public sealed class SyncEngine : BackgroundService
 
         _pumpStop?.Dispose();
         (_pumpStop, _pump, _reader, _framesPerSecond) = (null, null, null, null);
-        _scheduler.Clear();
+        _timeline.Clear();
     }
 
     async Task RestoreAsync(CancellationToken cancellationToken)

@@ -47,18 +47,6 @@ public sealed class ColorSenderTests
     }
 
     [Fact]
-    public void Cancel_drops_the_waiting_color()
-    {
-        _sender.Offer(Red);
-        _sender.TakeReady(S(0));
-        _sender.Offer(Blue);
-
-        _sender.Cancel();
-
-        Assert.Null(_sender.TakeReady(S(5)));
-    }
-
-    [Fact]
     public void After_a_reset_the_same_color_goes_out_again()
     {
         _sender.Offer(Red);

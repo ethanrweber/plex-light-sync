@@ -9,7 +9,14 @@ public sealed class SyncOptions
 {
     /// <summary>How long the sconces fade to a new color.</summary>
     [ConfigurationKeyName("sync_fade"), Display(Name = "sync_fade"), Range(0.0, 10.0)]
-    public double FadeSeconds { get; set; } = 0.5;
+    public double FadeSeconds { get; set; } = 2;
+
+    /// <summary>
+    /// How far the color vote looks before and after the moment. A new color must last about this long
+    /// before the lights follow it, so flashes and quick cuts do not reach the lights.
+    /// </summary>
+    [ConfigurationKeyName("sync_window"), Display(Name = "sync_window"), Range(0.0, 10.0)]
+    public double WindowSeconds { get; set; } = 3;
 
     /// <summary>How early a color goes out before its frame plays, to cover the zigbee delay.</summary>
     [ConfigurationKeyName("sync_send_offset"), Display(Name = "sync_send_offset"), Range(0.0, 5.0)]
@@ -42,6 +49,7 @@ public sealed class SyncOptions
         file.Width is > 0 and <= MaxSampledWidth ? 1 / MinGapSeconds : null;
 
     public TimeSpan Fade => TimeSpan.FromSeconds(FadeSeconds);
+    public TimeSpan Window => TimeSpan.FromSeconds(WindowSeconds);
     public TimeSpan SendOffset => TimeSpan.FromSeconds(SendOffsetSeconds);
     public TimeSpan MinGap => TimeSpan.FromSeconds(MinGapSeconds);
     public TimeSpan RestoreDelay => TimeSpan.FromSeconds(RestoreDelaySeconds);

@@ -10,10 +10,10 @@ when plex reports that a video plays on the living room tv:
 
 1. the service starts ffmpeg at the playback position.
 2. ffmpeg reads the file from plex. for a file up to 1920 pixels wide (1080p), it decodes the frames that other frames refer to, and writes one frame per minimum gap (two per second). for a wider file (4k), it decodes only the keyframes. it writes each frame as 64×36 pixels, with its timestamp. hdr files go through a tone map first.
-3. the service picks a vivid color from each frame, and queues the color by timestamp.
-4. when the playback clock reaches a timestamp, the service sends that color to the sconces through zigbee2mqtt, with a 0.5 s fade. it sends a little early (the send offset), to cover the zigbee delay.
+3. the service picks a vivid color from each frame, and keeps it in a timeline by timestamp.
+4. every 100 ms, the frames around a moment vote on the color of the sconces (see "color"). the moment is the playback position plus the send offset (the zigbee delay) plus half the fade, so that the 2 s fade is centered on a scene cut. a new color goes to the sconces through zigbee2mqtt.
 
-the service must schedule by timestamp. with keyframes only, the decoder holds each keyframe until the next one arrives, so frames come out up to one keyframe gap late (measured: 1.5–5 s). frames can also come out of order. the service drops any frame that is already in the past, except the newest one: that frame is on screen now, so the service sends it at once. without this, the sconces wait up to 10 s for a color after a start or a seek.
+the service must work by timestamp. with keyframes only, the decoder holds each keyframe until the next one arrives, so frames come out up to one keyframe gap late (measured: 1.5–5 s). frames can also come out of order. with keyframes only, the newest frame at or before the moment decides: after a start or a seek, that is the frame on screen now, so the color goes out at once. without this, the sconces wait up to 10 s for a color after a start or a seek. with two frames per second, the vote waits after a start or a seek until the frames fill the whole window (a few seconds): a vote on half a window can pick a color that the full window rejects a moment later.
 
 **too slow.** if the frames fall more than 15 s behind the playback, ffmpeg cannot decode the file in real time. then the service reads only the keyframes of that item, also after a seek, and logs a warning. the next item starts with two frames per second again. a normal start lags up to ~10 s, because ffmpeg begins at the keyframe before the start position.
 
@@ -57,8 +57,9 @@ zscale=w=64:h=36,zscale=t=linear:npl=100,format=gbrpf32le,zscale=p=bt709,tonemap
 3. the pixels that remain vote by hue, weighted by chroma. the 30° hue window with the most votes wins, and the color is the mean of its pixels with a saturation boost. a vote by hue picks teal or orange; an rgb average of the two is gray.
    the winning window needs at least 1% of the pixels.
 4. if no pixel remains (a black or colorless frame), hold the last color.
-5. if the new color is almost the same as the current one, do not send it. a new command restarts the fade, so small changes only make the light less smooth.
-6. send at most one color every 0.5 s (the minimum gap). if a newer color arrives during the wait, it replaces the color in the queue.
+5. the frames from 3 s before to 3 s after the moment (the window) vote on the color of the sconces. a frame is one vote, and black or colorless frames do not vote. the 30° hue window with the most frames wins, and the color is the mean of its frames.
+6. the current color stays unless the winner is clearly different (more than 20° of hue or 0.25 of saturation) and has at least 1.5 times the votes of the current color. so a color that lasts less than about half the window never wins, and two shots that alternate (a conversation) do not make the sconces alternate. the service reads ahead, so the window sees the future, and a real scene change still lands on its cut.
+7. send at most one color every 0.5 s (the minimum gap). with the vote, changes are seconds apart; the gap is a safety limit for zigbee.
 
 a group command is a zigbee broadcast: every router of the network sends it on once. each device keeps a table of recent broadcasts, so that it does not send one on twice. when the table is full, new broadcasts can be lost. the size of the table and how long an entry stays depend on the zigbee stack: 8 entries for 8 s on digi xbee, 15 entries (silicon labs docs) for about 3 s on emberznet, which the zbt-2 coordinator runs. hue bulbs do not publish theirs. so the network decides the safe rate, and `tools/zigbee-bench.cs` measures it (see "v0.2: faster colors"). the 1 s poll goes to plex over the lan, not over zigbee.
 
@@ -163,7 +164,7 @@ measured on 2026-10-14 and 2026-10-15.
 
 feedback after two days: the sync is fun, but feels like a gimmick. the main reason: the color changed only at keyframes, every 4–10 s, so the sconces followed a scene cut up to 10 s late. the 2 s send gap was rarely the limit. in 30 s of video, keyframes gave 3 colors (la la land, 4k), 4 (an x264 episode), 11 (an x265 movie, an av1 episode), and 39 (a remux with short keyframe gaps: the only file where the 2 s gap mattered).
 
-decisions (2026-10-16):
+decisions (2026-10-16, before the live test):
 
 - keep the group command. send at most one color every 0.5 s, with a 0.5 s fade. the lowest allowed minimum gap is 0.5 s: the fastest rate that was tested.
 - the frames per second follow the minimum gap (one frame per gap), so the two settings cannot disagree.
@@ -171,6 +172,27 @@ decisions (2026-10-16):
 - wider files (4k) keep keyframes only. the ha vm has 2 cores, and more cores for the vm are fewer for plex.
 - keep the rule that skips almost identical colors.
 - the engine loop ticks every 100 ms instead of 250 ms, so that a color every 0.5 s keeps its rhythm.
+
+**live test 1: a color per frame is worse.** on the dev run (the killing s01e01, 1080p), the service sent 172 colors in 7 min (about 25 per minute), 90 of them less than 1 s after the one before. two patterns: short outliers (green, 1.5 s of blue, green), and jitter inside a scene (orange 24° ↔ 34° every 1–2 s, each step just over the 8° limit). the user: rapid or clustered changes disturb the flow; low brightness (15%) is less distracting; a 2 s fade felt noticeably better than 0.5 s at every brightness.
+
+**the vote (decisions, 2026-10-16).** keep two frames per second as the input, but send the color of the scene, not of each frame:
+
+- the frames in a window around the moment vote, and the current color keeps the sconces unless it is clearly outvoted (see "color"). an idea from the user ("momentum": the longer a color stays, the slower it gives way) became this rule. momentum looks at the past, so a real scene change after a long scene comes late. the service reads ahead, so it judges a new color by how long it will last, not by how long the old one lasted.
+- the fade is 2 s, and centered on the cut: the color goes out 1 s (half the fade) before its moment.
+- the window is a setting (`sync_window`, ±3 s). a larger window ignores longer shots, but does not delay real changes.
+
+the window size came from the frames of the killing s01e01, 1:45–13:00 (`probe`, then the same vote in a script):
+
+| window | changes per minute | changes less than 4 s apart | back and forth within 12 s |
+|---|---|---|---|
+| one color per frame (live test 1) | about 25 | | |
+| ±2 s | 5.1 | 20 | 11 |
+| ±3 s (the default) | 3.7 | 9 | 3 |
+| ±4 s | 2.6 | 3 | 1 |
+
+with ±2 s, conversations still made the sconces alternate (orange 41°, blue 210°, orange 36°, blue 195°, orange 52° in 14 s).
+
+**open: a small vivid object in a muted scene.** the killing s01e01 at ~20:30: a white and beige school hallway, and the sconces turn deep red from a scarf. the picker ignores gray pixels, so the few vivid pixels win (1% is enough), and the saturation boost makes them deeper. the vote does not help: the scarf stays on screen long enough. a later change to the picker can scale the saturation by how colorful the whole frame is.
 
 **decode speed**, 30 s of video at two frames per second, one thread, on the r730 (xeon e5-2683 v3), × real time. to keep up, a file needs more than 1×:
 

@@ -17,6 +17,9 @@ public sealed class ColorSender(TimeSpan minGap)
     TimeSpan? _lastSentAt;
     HsColor? _waiting;
 
+    /// <summary>The last color that went out, or null after a <see cref="Reset"/>.</summary>
+    public HsColor? Last => _last;
+
     /// <summary>Offers a color. A newer offer replaces one that still waits.</summary>
     public void Offer(HsColor color) => _waiting = color;
 
@@ -40,9 +43,6 @@ public sealed class ColorSender(TimeSpan minGap)
         _lastSentAt = now;
         return color;
     }
-
-    /// <summary>Drops the color that waits, if any.</summary>
-    public void Cancel() => _waiting = null;
 
     /// <summary>Forgets the last color, so that the next one goes out even if it is the same. Use it after a restore.</summary>
     public void Reset()
