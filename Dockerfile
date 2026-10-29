@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # build: restore first (a layer that changes only with the packages), then publish
-FROM mcr.microsoft.com/dotnet/sdk:10.0.402-alpine3.24 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0.403-alpine3.24 AS build
 WORKDIR /source
 COPY global.json Directory.Build.props Directory.Packages.props ./
 COPY src/PlexLightSync/PlexLightSync.csproj src/PlexLightSync/
