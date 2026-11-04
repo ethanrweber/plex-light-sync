@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.0
+
+- New setting "Player address": the IP address of the device to follow, for example the TV. Every Plex app on the device counts, so a change of app on the TV, or a reinstall of an app, needs no change in the settings. Give the device a fixed address on your router.
+- "Plex player ID" is now optional. Set the player address, the player ID, or both.
+- The log line for each new player shows its address: "Plex player seen: <name> at <address> (<ID>)".
+
 ## 0.2.0
 
 - The lights follow scenes, not single frames. The frames around each moment vote on the color, and a new color must last about 3 s ("Window") before the lights follow it, so flashes and quick cuts do not reach the lights. The app reads ahead, so a change still lands on its scene cut, with a 2 s fade centered on the cut.
