@@ -8,7 +8,7 @@ status: v1 works with real lights, and runs as a home assistant app. the design 
 
 ## how it works
 
-1. the service polls plex every second, and follows one player.
+1. the service polls plex every second, and follows one device (by its ip address), or one player app (by its machine id).
 2. when a movie or an episode plays there, ffmpeg reads the file from plex. it gives two frames per second from a file up to 1920 pixels wide (1080p). from a wider file (4k), it gives only the keyframes: one core decodes 4k too slowly. hdr files get a tone map.
 3. the service picks one vivid color from each frame. the frames around each moment (±3 s) vote on the color of the lights, so that the lights follow scenes, not single frames. the service reads ahead, so a change lands on its scene cut, with a 2 s fade centered on the cut.
 4. on a pause, the lights hold their color. 30 s after playback stops, they get back the colors from before the sync.
@@ -33,7 +33,7 @@ the service changes only the color, never the brightness, and only while the lig
    ```
    curl -s "https://plex.tv/api/v2/pins/<id>" -H 'Accept: application/json' -H "X-Plex-Client-Identifier: $CLIENT_ID"
    ```
-2. **find the machine id of the player.** start the service with the other settings, and play something on the player. the log shows "Plex player seen: <name> (<machine id>)".
+2. **find the address of the player.** this is the ip address of the device that plays (the tv). give the device a fixed address on your router (a dhcp reservation). every plex app on the device counts, so a change of app, or a reinstall, needs no change here. to see the address that plex reports, start the service and play something: the log shows "Plex player seen: <name> at <address> (<machine id>)".
 3. **create an mqtt login** for the service on your broker.
 4. **copy `.env.example` to `.env`**, and fill it in. `.env` holds secrets: never commit it.
 
@@ -60,7 +60,8 @@ environment variables, or the same keys in lowercase in `/data/options.json`.
 | `PLEX_URL` | (required) | the plex server, for example `https://192-168-1-2.0123abcd.plex.direct:32400` |
 | `PLEX_TOKEN` | (required) | the token of the service (setup step 1) |
 | `PLEX_CLIENT_ID` | (required) | the client identifier that linked the token |
-| `PLEX_PLAYER_ID` | (required) | the machine id of the player to follow |
+| `PLEX_PLAYER_ADDRESS` | (this, `PLEX_PLAYER_ID`, or both) | the ip address of the device to follow. every plex app on it counts |
+| `PLEX_PLAYER_ID` | (this, `PLEX_PLAYER_ADDRESS`, or both) | the machine id of one player app to follow. each app on a device has its own id, and a reinstall can change it |
 | `MQTT_HOST` | (required) | the mqtt broker |
 | `MQTT_PORT` | `1883` | |
 | `MQTT_USER`, `MQTT_PASSWORD` | (none) | the mqtt login |
@@ -87,6 +88,8 @@ turn "Movie sync" off to stop the sync and get the old colors back at once. an a
 - **"Movie sync" is unavailable:** the service does not run, or cannot reach the broker. read its log.
 - **"the broker refused the connection: NotAuthorized":** the mqtt login is wrong, or the broker did not save it.
 - **"settings error: ...":** a setting is missing or wrong. the message names the key.
+- **nothing happens when a video plays:** the log line "Following Plex player ..." must agree with one of the "Plex player seen: <name> at <address> (<machine id>)" lines. also make sure that "Movie sync" is on.
+- **other players also move the lights:** plex sees them at the same address, for example through a proxy. clear `PLEX_PLAYER_ADDRESS`, and set `PLEX_PLAYER_ID` instead.
 - **the status is "error":** the service cannot get the file from plex, or ffmpeg fails. the log has the reason, and the service tries again every 5–60 s.
 - **colors feel too strong:** lower `COLOR_SATURATION_BOOST`, or dim the lights. the service never changes the brightness.
 

@@ -23,12 +23,12 @@ public sealed class PlexClientTests
               {
                 "type": "movie", "ratingKey": "100", "viewOffset": 1363540, "duration": 7402195,
                 "Media": [{ "id": 58, "Part": [{ "id": 58, "key": "/library/parts/58/1700000000/file.mkv" }] }],
-                "Player": { "machineIdentifier": "tv-1", "title": "Living Room TV", "state": "playing" }
+                "Player": { "machineIdentifier": "tv-1", "title": "Living Room TV", "address": "::ffff:192.168.1.5", "state": "playing" }
               },
               {
                 "type": "clip", "ratingKey": "200", "viewOffset": 1000,
                 "Media": [{ "id": 7, "Part": [{ "id": 7, "key": "/library/parts/7/1/file.mp4" }] }],
-                "Player": { "machineIdentifier": "phone-1", "title": "Phone", "state": "paused" }
+                "Player": { "machineIdentifier": "phone-1", "title": "Phone", "address": "192.168.1.70", "state": "paused" }
               },
               {
                 "type": "episode", "ratingKey": "300", "live": 1,
@@ -80,6 +80,9 @@ public sealed class PlexClientTests
         var movie = sessions[0];
         Assert.Equal("tv-1", movie.PlayerId);
         Assert.Equal("Living Room TV", movie.PlayerTitle);
+        Assert.Equal(IPAddress.Parse("192.168.1.5"), movie.PlayerAddress); // the ipv4 form of ::ffff:192.168.1.5
+        Assert.Equal(IPAddress.Parse("192.168.1.70"), sessions[1].PlayerAddress);
+        Assert.Null(sessions[2].PlayerAddress);
         Assert.Equal(new PlayingItem("100", 58), movie.Item);
         Assert.Equal(TimeSpan.FromMilliseconds(1363540), movie.Offset);
         Assert.Equal(PlayerState.Playing, movie.State);

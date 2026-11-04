@@ -1,5 +1,4 @@
 using System.Text.Json;
-using Microsoft.Extensions.Options;
 using PlexLightSync.Sync;
 
 namespace PlexLightSync.Plex;
@@ -12,7 +11,7 @@ public sealed class PlaybackMonitor(
     PlexClient plex,
     PlaybackTracker tracker,
     SyncInbox inbox,
-    IOptions<PlexOptions> options,
+    FollowedPlayer player,
     TimeProvider time,
     ILogger<PlaybackMonitor> logger) : BackgroundService
 {
@@ -24,8 +23,7 @@ public sealed class PlaybackMonitor(
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        var playerId = options.Value.PlayerId;
-        logger.LogInformation("Following Plex player {PlayerId}", playerId);
+        logger.LogInformation("Following Plex player {Player}", player);
 
         using var timer = new PeriodicTimer(PollInterval, time);
         do
@@ -35,7 +33,7 @@ public sealed class PlaybackMonitor(
                 continue; // keep the current state until Plex answers again
 
             LogNewPlayers(sessions);
-            var report = sessions.FirstOrDefault(s => s.PlayerId == playerId && s.IsSyncable)?.ToReport();
+            var report = player.Pick(sessions)?.ToReport();
             if (tracker.Observe(report) is { } playbackEvent)
             {
                 Log(playbackEvent);
@@ -69,13 +67,15 @@ public sealed class PlaybackMonitor(
         }
     }
 
-    // logs each player once, so that its machine id is easy to find for the settings
+    // logs each player once, so that its address and machine id are easy to find for the settings
     void LogNewPlayers(IReadOnlyList<PlexSession> sessions)
     {
         foreach (var session in sessions)
         {
             if (_seenPlayers.Add(session.PlayerId))
-                logger.LogInformation("Plex player seen: {PlayerTitle} ({PlayerId})", session.PlayerTitle, session.PlayerId);
+                logger.LogInformation(
+                    "Plex player seen: {PlayerTitle} at {PlayerAddress} ({PlayerId})",
+                    session.PlayerTitle, session.PlayerAddress?.ToString() ?? "no address", session.PlayerId);
         }
     }
 

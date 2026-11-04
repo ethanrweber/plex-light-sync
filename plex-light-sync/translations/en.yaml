@@ -8,9 +8,12 @@ configuration:
   plex_client_id:
     name: Plex client ID
     description: The client identifier that linked the token.
+  plex_player_address:
+    name: Player address
+    description: The IP address of the device to follow, for example the living room TV. Every Plex app on it counts. Give the device a fixed address on your router.
   plex_player_id:
     name: Plex player ID
-    description: The machine identifier of the player to follow, for example the living room TV.
+    description: Optional. The machine identifier of one Plex app to follow, instead of (or as well as) the player address. Each app on a device has its own ID, and a reinstall can change it.
   zigbee2mqtt_group:
     name: Zigbee2MQTT group
     description: The friendly name of the Zigbee2MQTT group of the lights that follow the video.

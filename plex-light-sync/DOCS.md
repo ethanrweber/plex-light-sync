@@ -1,6 +1,6 @@
 # Plex light sync
 
-The app makes a Zigbee2MQTT light group follow the colors of the movie or episode that plays on one Plex player. It changes only the color, never the brightness, and only while the lights are on. It never turns a light on or off.
+The app makes a Zigbee2MQTT light group follow the colors of the movie or episode that plays on one device, for example the living room TV. It changes only the color, never the brightness, and only while the lights are on. It never turns a light on or off.
 
 ## Before you start
 
@@ -23,11 +23,8 @@ You need:
    curl -s "https://plex.tv/api/v2/pins/<id>" -H 'Accept: application/json' -H "X-Plex-Client-Identifier: $CLIENT_ID"
    ```
    The token shows up as the device "plex-light-sync" under Authorized Devices in Plex, so you can revoke it alone.
-2. **Find the player ID.** The list of your Plex devices shows it as `clientIdentifier`:
-   ```
-   curl -s https://plex.tv/devices.xml -H "X-Plex-Token: <token>"
-   ```
-3. **Fill in the settings** on the Configuration tab: the Plex URL, the token, the client ID (the `CLIENT_ID` from step 1), the player ID, and the Zigbee2MQTT group.
+2. **Find the address of the player.** This is the IP address of the device that plays, for example the TV. Your router shows it in its list of devices. Give the device a fixed address there (a DHCP reservation), so that the address does not change. Every Plex app on the device counts, so you can change apps on the TV, or reinstall an app, without a change here.
+3. **Fill in the settings** on the Configuration tab: the Plex URL, the token, the client ID (the `CLIENT_ID` from step 1), the player address, and the Zigbee2MQTT group.
 4. **Start the app.** The log shows "MQTT connected" and the bulbs of the group.
 
 ## In Home Assistant
@@ -51,5 +48,7 @@ The optional settings tune the timing and the colors. Show them with "Show unuse
 
 - **Status "error":** the app cannot get the video from Plex. The log has the reason, and the app tries again every 5 to 60 s.
 - **"settings error" in the log:** a setting is missing or wrong. The message names it.
+- **Nothing happens when a video plays:** the log line "Following Plex player ..." must agree with one of the "Plex player seen: <name> at <address> (<ID>)" lines. The app writes a "seen" line for each player when it first plays something. Also make sure that "Movie sync" is on.
+- **Other players also move the lights:** Plex sees them at the same address, for example through a proxy. Clear the player address, and set the player ID of the app instead.
 
 More: https://github.com/ethanrweber/plex-light-sync

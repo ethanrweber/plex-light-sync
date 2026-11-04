@@ -18,7 +18,8 @@ options:
   plex_url: null
   plex_token: null
   plex_client_id: null
-  plex_player_id: null
+  # set the address, the player id, or both. the empty default shows the address in the form
+  plex_player_address: ""
   zigbee2mqtt_group: null
   log_level: info
 
@@ -27,7 +28,8 @@ schema:
   plex_url: url
   plex_token: password
   plex_client_id: str
-  plex_player_id: str
+  plex_player_address: "str?"
+  plex_player_id: "str?"
   zigbee2mqtt_group: str
   log_level: list(info|debug)
   zigbee2mqtt_topic: "str?"

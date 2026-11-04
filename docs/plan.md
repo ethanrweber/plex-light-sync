@@ -82,7 +82,7 @@ trigger: movies and episodes from the libraries. trailers, extras, live tv, and 
 
 | to | how | for |
 |---|---|---|
-| plex | poll `/status/sessions` every 1 s | the state, file, and position of the player with the configured machine id |
+| plex | poll `/status/sessions` every 1 s | the state, file, and position of the followed player: any app at the configured ip address, or the app with the configured machine id |
 | plex | ffmpeg, over https | the video file |
 | home assistant | mqtt discovery | the "Movie sync" switch, a status sensor (idle, syncing, paused, error), and availability |
 | zigbee2mqtt | subscribe `zigbee2mqtt/bridge/groups` and `zigbee2mqtt/bridge/devices` | the bulbs in the group, by friendly name |
@@ -99,10 +99,11 @@ the switch keeps its state across restarts, and is on after the first start. hom
 - **the color step is the seam for v2.** it takes a frame and returns one color per light. v1 returns the same color for every light.
 - **settings** come from environment variables or `/data/options.json`. the same build runs on the docker vm and in haos. the keys are flat snake_case: .NET config keys ignore case, so `plex_token` in `options.json` and the `PLEX_TOKEN` environment variable are the same key. for the prototype, a gitignored `.env` holds them.
 - **the plex token** is a dedicated token, linked through plex.tv/link. it shows as its own device under authorized devices in plex, so you can revoke it alone. it never goes into a log. bitwarden keeps the copy.
+- **the player is a device**, found by its ip address. each plex app on a device has its own machine id, and a sideloaded app (plezy) can get a new id at each reinstall. on 2026-10-29 the tv changed from the official plex app to plezy, and the sync stopped until the id changed. both apps report the same address. the device name is not safe: other users of the server have devices with the same name ("Living Room TV"). the machine id stays as an option, for a server that sees all players at one address (for example through a proxy).
 - **upkeep**: dependabot for nuget packages, the docker base image, and github actions. mit license. the readme explains how it works, the settings, and how to debug with the ffmpeg command.
 - **tests**: xUnit and `FakeTimeProvider` for the color step and the state machine. the video tests generate short clips with ffmpeg (known colors, known keyframe times, one hdr clip), and run the real pipeline on them. no plex in ci.
 
-settings: plex url, plex token, player machine id, mqtt host and login (prototype only), zigbee2mqtt group, fade, send offset, minimum send gap, color thresholds (`color_black_level`, `color_min_saturation`), saturation boost (`color_saturation_boost`), restore delay, restore fade.
+settings: plex url, plex token, player ip address and/or machine id, mqtt host and login (prototype only), zigbee2mqtt group, fade, send offset, minimum send gap, color thresholds (`color_black_level`, `color_min_saturation`), saturation boost (`color_saturation_boost`), restore delay, restore fade.
 
 ## repo
 

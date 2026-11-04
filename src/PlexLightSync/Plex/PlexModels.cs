@@ -1,3 +1,5 @@
+using System.Net;
+
 namespace PlexLightSync.Plex;
 
 public enum PlayerState { Playing, Paused, Buffering }
@@ -13,9 +15,11 @@ public sealed record PlayerReport(PlayingItem Item, TimeSpan Offset, PlayerState
 public sealed record MediaFile(long PartId, string PartKey, bool IsHdr, int Width = 0);
 
 /// <summary>One playback session on the Plex server.</summary>
+/// <param name="PlayerAddress">The IP address of the player's device. Null if Plex does not give one.</param>
 public sealed record PlexSession(
     string PlayerId,
     string PlayerTitle,
+    IPAddress? PlayerAddress,
     string Type,
     bool IsLive,
     PlayingItem Item,
@@ -37,6 +41,7 @@ public sealed record PlexSession(
         return new PlexSession(
             PlayerId: metadata.Player?.MachineIdentifier ?? "",
             PlayerTitle: metadata.Player?.Title ?? "",
+            PlayerAddress: FollowedPlayer.ParseAddress(metadata.Player?.Address),
             Type: metadata.Type ?? "",
             IsLive: metadata.IsLive,
             Item: new PlayingItem(metadata.RatingKey ?? "", part?.Id ?? 0),

@@ -27,7 +27,7 @@ internal sealed record PlexMetadata(
     };
 }
 
-internal sealed record PlexPlayer(string? MachineIdentifier, string? Title, string? State);
+internal sealed record PlexPlayer(string? MachineIdentifier, string? Title, string? Address, string? State);
 
 internal sealed record PlexMedia(long Id, List<PlexPart>? Part);
 

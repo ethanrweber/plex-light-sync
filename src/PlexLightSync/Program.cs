@@ -78,6 +78,7 @@ builder.Services.AddOptions<SyncOptions>()
     .ValidateDataAnnotations()
     .ValidateOnStart();
 
+builder.Services.AddSingleton(services => new FollowedPlayer(services.GetRequiredService<IOptions<PlexOptions>>().Value));
 builder.Services.AddTransient<IMediaFileLookup>(services => services.GetRequiredService<PlexClient>());
 builder.Services.AddSingleton(services => new PlaybackTracker(
     services.GetRequiredService<TimeProvider>(), PlaybackMonitor.SeekThreshold, reportDelay: PlaybackMonitor.PollInterval / 2));
