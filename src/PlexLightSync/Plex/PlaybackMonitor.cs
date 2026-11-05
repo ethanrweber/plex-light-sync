@@ -1,3 +1,4 @@
+using System.Net;
 using System.Text.Json;
 using PlexLightSync.Sync;
 
@@ -18,7 +19,7 @@ public sealed class PlaybackMonitor(
     public static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(1);
     public static readonly TimeSpan SeekThreshold = TimeSpan.FromSeconds(3);
 
-    readonly HashSet<string> _seenPlayers = [];
+    readonly HashSet<(string Id, IPAddress? Address)> _seenPlayers = [];
     bool _plexDown;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -33,7 +34,7 @@ public sealed class PlaybackMonitor(
                 continue; // keep the current state until Plex answers again
 
             LogNewPlayers(sessions);
-            var report = player.Pick(sessions)?.ToReport();
+            var report = player.Follow(sessions)?.ToReport();
             if (tracker.Observe(report) is { } playbackEvent)
             {
                 Log(playbackEvent);
@@ -67,12 +68,13 @@ public sealed class PlaybackMonitor(
         }
     }
 
-    // logs each player once, so that its address and machine id are easy to find for the settings
+    // logs each player once, and again at a new address, so that its address and machine id are easy
+    // to find for the settings
     void LogNewPlayers(IReadOnlyList<PlexSession> sessions)
     {
         foreach (var session in sessions)
         {
-            if (_seenPlayers.Add(session.PlayerId))
+            if (_seenPlayers.Add((session.PlayerId, session.PlayerAddress)))
                 logger.LogInformation(
                     "Plex player seen: {PlayerTitle} at {PlayerAddress} ({PlayerId})",
                     session.PlayerTitle, session.PlayerAddress?.ToString() ?? "no address", session.PlayerId);

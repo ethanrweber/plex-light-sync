@@ -41,7 +41,7 @@ public sealed class PlexOptions : IValidatableObject
                 "set plex_player_address (the IP address of the device to follow), plex_player_id, or both.",
                 ["plex_player_address", "plex_player_id"]);
         }
-        else if (!string.IsNullOrWhiteSpace(PlayerAddress) && FollowedPlayer.ParseAddress(PlayerAddress) is null)
+        else if (!string.IsNullOrWhiteSpace(PlayerAddress) && !FollowedPlayer.IsAddress(PlayerAddress))
         {
             yield return new ValidationResult(
                 $"plex_player_address \"{PlayerAddress}\" is not an IP address.",

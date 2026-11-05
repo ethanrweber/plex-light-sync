@@ -332,6 +332,36 @@ public sealed class SyncEngineTests
         Assert.Single(_lights.Restores);
     }
 
+    // the polls of PlaybackMonitor: the real FollowedPlayer, the real tracker, and the engine
+    [Fact]
+    public async Task A_stop_restores_the_colors_even_when_another_app_on_the_tv_keeps_a_paused_session()
+    {
+        var player = new FollowedPlayer(new PlexOptions { PlayerAddress = "192.168.1.5" });
+        static PlexSession Session(string app, PlayingItem item, double offset, PlayerState state) =>
+            new(app, "Living Room TV", System.Net.IPAddress.Parse("192.168.1.5"), "movie", IsLive: false, item, S(offset), state);
+        var otherApp = Session("plex-app", NextEpisode, 1200, PlayerState.Paused); // plex still keeps it
+
+        async Task PollAsync(params PlexSession[] sessions)
+        {
+            if (_playback.Observe(player.Follow(sessions)?.ToReport()) is { } playbackEvent)
+                await _engine.HandleAsync(playbackEvent, Token);
+        }
+
+        _frames.Frames.Add(Red(60));
+        await PollAsync(otherApp, Session("plezy", Movie, 60, PlayerState.Playing));
+        await _engine.TickAsync(Token);
+        Assert.Single(_lights.Colors);
+
+        await PollAsync(otherApp); // plezy stopped
+        for (var i = 0; i < 40; i++)
+        {
+            await AdvanceAsync(1);
+            await PollAsync(otherApp);
+        }
+
+        Assert.Single(_lights.Restores); // 30 s after the stop (0.3.0: never, while the other session stayed)
+    }
+
     [Fact]
     public async Task An_autoplayed_episode_within_the_delay_keeps_the_saved_colors()
     {
