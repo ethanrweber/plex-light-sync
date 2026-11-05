@@ -123,14 +123,16 @@ ci (`.github/workflows/ci.yml`) runs the tests on every push, and publishes the 
 
 1. set the new version in `src/PlexLightSync/PlexLightSync.csproj` (`<Version>`) and in `plex-light-sync/config.yaml` (`version`).
 2. add an entry to `plex-light-sync/CHANGELOG.md`.
-3. commit, push, then tag and push the tag:
+3. put the code, the docs, and the version change in one pull request, so that they reach `main` together.
+4. after the merge, tag the merge commit, and push the tag:
    ```
-   git tag v0.2.0
-   git push origin v0.2.0
+   git switch main && git pull
+   git tag v0.3.1
+   git push origin v0.3.1
    ```
-4. ci checks that the tag matches both versions, and publishes the image with that version. then home assistant offers the update.
+5. ci checks that the tag matches both versions, and publishes the image with that version.
 
-home assistant reads `config.yaml` from `main`. push the version change and the tag together: until ci publishes the image (about 3 minutes), an update in home assistant fails.
+home assistant reads `config.yaml` and the app docs from `main`, so it offers the update at the merge. until ci publishes the image (about 3 minutes after the tag), an update in home assistant fails. push the tag right after the merge.
 
 ## probe: see the colors without lights
 

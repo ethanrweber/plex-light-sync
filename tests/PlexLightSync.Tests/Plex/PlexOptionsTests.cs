@@ -73,6 +73,7 @@ public sealed class PlexOptionsTests
     [Theory]
     [InlineData("living-room-tv")]
     [InlineData("192.168.1.300")]
+    [InlineData("192.168.1")] // a short form that IPAddress.TryParse takes as 192.168.0.1
     public void An_address_that_is_not_an_ip_address_is_a_settings_error(string address)
     {
         var error = Assert.Throws<OptionsValidationException>(() => Load(address, null));

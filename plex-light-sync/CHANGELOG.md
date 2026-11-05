@@ -1,7 +1,14 @@
 # Changelog
 
+## 0.3.1
+
+- Fix: when playback stopped while another Plex app on the same device still had a paused session, the lights kept the movie color, and did not get their old colors back. The app now stays on the session that it follows, changes to another session on the device only when that one plays, and takes the end of the followed session as a stop.
+- Fix: a short address such as "192.168.1" passed the settings check, and the app followed 192.168.0.1. Now an IPv4 address must have four parts.
+- The log shows a player again when it appears at a new address.
+
 ## 0.3.0
 
+- After the update, the app still follows "Plex player ID". To follow the device, set "Player address", and clear "Plex player ID".
 - New setting "Player address": the IP address of the device to follow, for example the TV. Every Plex app on the device counts, so a change of app on the TV, or a reinstall of an app, needs no change in the settings. Give the device a fixed address on your router.
 - "Plex player ID" is now optional. Set the player address, the player ID, or both.
 - The log line for each new player shows its address: "Plex player seen: <name> at <address> (<ID>)".

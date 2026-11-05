@@ -158,6 +158,7 @@ measured on 2026-10-14 and 2026-10-15.
 
 - **4k: keyframes.** for a file wider than 1920 pixels, the color changes only at a keyframe: typically every 4–6 s, at most every 10 s (4k files often have a fixed 10 s gap). one core decodes 4k at only 0.6× real time, and the ha vm has 2 cores, which it shares with home assistant.
 - **seeks.** the tv reports its position every 10 s, so the service can find a seek up to 10 s late.
+- **two apps on the tv.** each app can have a session at the same time: an app in the background keeps its paused session, and plex keeps the session of an app that closed for some minutes. the service stays on the session that it follows, changes to another session on the device only when that one plays, and takes the end of the followed session as a stop. an app that closes during playback can leave a session that still says "playing". if that session is the first that plays, the lights follow it until plex drops it.
 - **plex only.** netflix and youtube do not go through plex.
 - **wall switch.** if the wall switch is off, the bulbs have no power, and nothing happens.
 
