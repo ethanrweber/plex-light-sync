@@ -23,7 +23,7 @@ You need:
    curl -s "https://plex.tv/api/v2/pins/<id>" -H 'Accept: application/json' -H "X-Plex-Client-Identifier: $CLIENT_ID"
    ```
    The token shows up as the device "plex-light-sync" under Authorized Devices in Plex, so you can revoke it alone.
-2. **Find the address of the player.** This is the IP address of the device that plays, for example the TV. Your router shows it in its list of devices. Give the device a fixed address there (a DHCP reservation), so that the address does not change. Every Plex app on the device counts, so you can change apps on the TV, or reinstall an app, without a change here.
+2. **Find the address of the player.** This is the IP address of the device that plays, for example the TV. Your router shows it in its list of devices. Give the device a fixed address there (a DHCP reservation), so that the address does not change. Every Plex app on the device counts, so you can change apps on the TV, or reinstall an app, without a change here. To see the address that Plex gets from the device, start the app, and play something: the log shows "Plex player seen: <name> at <address> (<ID>)".
 3. **Fill in the settings** on the Configuration tab: the Plex URL, the token, the client ID (the `CLIENT_ID` from step 1), the player address, and the Zigbee2MQTT group.
 4. **Start the app.** The log shows "MQTT connected" and the bulbs of the group.
 
@@ -42,13 +42,13 @@ The app adds the device "Plex light sync" with two entities:
 
 ## Settings
 
-The optional settings tune the timing and the colors. Show them with "Show unused optional configuration options". If the colors feel too strong, lower "Saturation boost", or dim the lights.
+The optional settings tune the timing and the colors, and "Plex player ID" follows one app instead of the device. Show them with "Show unused optional configuration options". If the colors feel too strong, lower "Saturation boost", or dim the lights.
 
 ## Problems
 
 - **Status "error":** the app cannot get the video from Plex. The log has the reason, and the app tries again every 5 to 60 s.
 - **"settings error" in the log:** a setting is missing or wrong. The message names it.
 - **Nothing happens when a video plays:** the log line "Following Plex player ..." must agree with one of the "Plex player seen: <name> at <address> (<ID>)" lines. The app writes a "seen" line for each player when it first plays something. Also make sure that "Movie sync" is on.
-- **Other players also move the lights:** Plex sees them at the same address, for example through a proxy. Clear the player address, and set the player ID of the app instead.
+- **Other players also move the lights:** Plex sees them at the same address, for example through a proxy. Clear the player address, and set "Plex player ID" to the ID of the app instead (show it with "Show unused optional configuration options").
 
 More: https://github.com/ethanrweber/plex-light-sync
